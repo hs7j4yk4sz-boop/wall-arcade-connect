@@ -101,6 +101,7 @@ const submitJs = await bundle('submit-page.ts'), adminJs = await bundle('admin-p
 if (!builders.includes('href="./submit.html"')) throw new Error('hub/builders.html must link to ./submit.html');
 if (!submitPage.includes('src="./submit-page.js"') || !adminPage.includes('src="./admin-page.js"')) throw new Error('submit.html and admin.html load their scripts');
 if (!adminPage.includes('noindex')) throw new Error('hub/admin.html stays out of search engines');
+if (!adminPage.includes('id="addForm"')) throw new Error('hub/admin.html has ADD A GAME');
 if (/spriteparty\.com\/p\/[^/"]+\/capture/.test(new TextDecoder().decode(gateJs))) throw new Error('people-gate.js must not hold the capture link');
 // THE WALL KIT: the example's very text under its live demo, the snapshot's date; linked from the hub and the builders page
 for (const marker of ['/*WALK*/', '/*BUILT*/']) if (!assetsSource.includes(marker)) throw new Error(`hub/assets.html must hold ${marker}`);

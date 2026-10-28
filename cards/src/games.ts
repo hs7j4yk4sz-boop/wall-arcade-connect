@@ -111,7 +111,13 @@ export function applyAdmin(games: Game[], a: AdminAction, now: number): Game[] |
   const f = a.fields, next = { ...game, artist: { ...game.artist } };
   if (f.title !== undefined) { const t = text(f.title, LIMITS.title); if (!t) return { error: 'title: 1 to 24 characters' }; next.title = t; }
   if (f.line !== undefined) { const l = text(f.line, LIMITS.line); if (!l) return { error: 'one line: 1 to 120 characters' }; next.line = l; }
-  if (f.artistName !== undefined) { const n = text(f.artistName, 60); if (!n) return { error: 'artist: a name' }; next.artist.name = n; }
+  if (f.artistName !== undefined) {
+    const n = text(f.artistName, 60); if (!n) return { error: 'artist: a name' };
+    // a game recorded under its name on the wall keeps it as `wall` when the artist signs otherwise (NISSLA → Nissla)
+    if (!next.artist.wall && game.artist.name && game.artist.panel && n !== game.artist.name) next.artist.wall = game.artist.name;
+    if (next.artist.wall === n) delete next.artist.wall;
+    next.artist.name = n;
+  }
   if (f.panel !== undefined) { if (f.panel !== null && !(Number.isInteger(f.panel) && f.panel > 0 && f.panel <= 600)) return { error: 'panel: a number' }; next.artist.panel = f.panel; }
   if (f.payoutWallet !== undefined) { if (f.payoutWallet !== null && !WALLET.test(f.payoutWallet)) return { error: 'payout wallet: 0x and 40 hex digits' }; next.payoutWallet = f.payoutWallet; }
   return games.map((g) => (g === game ? next : g));

@@ -134,7 +134,10 @@ false` in `cards/src/games.ts`).
 
 John plays it at its address, then opens `admin.html` on the hub (linked from no page; the card service answers only to
 a wallet of its `ADMIN_WALLET` variable, comma-separated): PUT IT ON THE HUB (last column, NEW), HIDE, ↑ ↓ for the order
-of the columns, EDIT, ATTACH again if the group refused it, a new capture.
+of the columns, EDIT, ATTACH again if the group refused it, a new capture. ADD A GAME, for a game sent by DM: the name on
+the wall (or its panel number), the address, the app ID; the same eight checks; all green, the same as a submission
+(attached, `pending`, captured, the 40% to the wallet holding that name), no mail. Its title is its page's, its line is
+given with EDIT before PUT IT ON THE HUB.
 
 **One list: `games.json`** (`GET https://wall-arcade-cards.netlify.app/games.json`, public, store "games" on Netlify
 Blobs; seeded from `cards/games/seed.json`). The hub draws its columns and its boards from it (at build, and again live:
@@ -143,7 +146,7 @@ make one, its capture otherwise); `/stats` names the games with it; the card ser
 with it (`cards/src/group.ts`); the table below is printed from it (`npx tsx scripts/readme-games.ts`).
 
 By hand, still: John's test play, the click, the 10 s clip of a featured game, and Friday's payment to the wallets below.
-To attach an app outside the form (then add it to `games.json` from its seed or the admin page):
+To attach an app outside the form and the admin page (then add it to `games.json`):
 
 ```sh
 rare-profile credit-group add-game 60faaf46-ba4b-460c-a82a-adb852371a94 --app <ARTIST_APP_ID> --origin https://<artist-host>.srstudio.dev --credits 1
@@ -164,6 +167,7 @@ another).
 | Dirty Signals Radio | Bully Meow (BULLY-MEOW, panel 18) | `8617e311-f5d4-4e04-9010-19298f2ff9a0` | https://sy3mgnnh.srstudio.dev | `0x14076eFC88Ca7D53594500261AdA8185033e6D5B` | 27 Oct 2026 | 28 Oct 2026, column 3 |
 | THE MORNING BREW | osaykancuno (K4NCUN0, panel 33) | `1c10c96c-bf88-471c-88af-7f23a992a7ea` | https://k6ag9vxz.srstudio.dev | `0x41b199A5194c58b29559A482E919331E1c8EEF85` | 28 Oct 2026 | 28 Oct 2026, column 4 |
 | WALL KART | to confirm | `5444a563-cba8-418c-9add-f367140c9511` | https://wxrb8y3y.srstudio.dev | — | 28 Oct 2026 | pending |
+| WALL TAGGER 2000 | Nissla (NISSLA, panel 40) | `d321d819-33a3-4c80-8f29-a68983287e33` | https://92hxxw5w.srstudio.dev | `0x92fab452e2f14c7730f79031906e06326c916946` | 28 Oct 2026 | pending |
 <!-- games:end -->
 
 ## The people of the wall: walking sprites

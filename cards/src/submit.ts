@@ -4,8 +4,9 @@
 //   POST /api/submit          an artist's game: who they are (their SuperRare Connect session, checked with SuperRare),
 //                             the eight checks below, each green or red with its remedy; all green: attached to the
 //                             credit group at 1 credit per play, recorded as pending, captured, John told by mail
-//   POST /api/admin           John (a wallet of ADMIN_WALLET, by its Connect session): PUT IT ON THE HUB, HIDE, the
-//                             order of the columns, EDIT, ATTACH again, a new capture
+//   POST /api/admin           John (a wallet of ADMIN_WALLET, by its Connect session): ADD A GAME (sent by DM: the same
+//                             eight checks, the same attach), PUT IT ON THE HUB, HIDE, the order of the columns, EDIT,
+//                             ATTACH again, a new capture
 // Who is who: the page sends its Connect access token (`accessToken`, the opaque session id the Connect SDK hands out);
 // SuperRare answers which wallet it belongs to (GET /v1/connect/session). It is used for that one question and never
 // kept. No signature, no transaction, no credit on either page.
@@ -143,23 +144,68 @@ export async function handleSubmit(request: Request, deps: SubmitDeps): Promise<
   if (!checks.every((c) => c.ok)) return json({ ok: false, checks }, 200, h);
 
   // all green: attached to the group, recorded, captured, John told
-  const now = new Date(deps.now()).toISOString();
+  const h1 = holder as Holder;
+  const done = await recordGame(deps, { form, holder: h1, artistName: h1.name, by: wallet });
+  if (!done) return json({ ok: false, checks: checks.map((c) => (c.n === 8 ? { ...c, ok: false, fix: 'Already submitted.' } : c)) }, 200, h);
+  await deps.notify(done);
+  return json({ ok: true, checks, game: { appId: done.appId, title: done.title, status: done.status, attached: done.attachedAt !== null } }, 200, h);
+}
+
+type Holder = { name: string; panel: number; handle: string | null };
+/** A game whose eight checks are green: attached to the credit group at 1 credit per play (a refusal is kept as
+ *  attachError: ATTACH again from the admin page), recorded pending (live with AUTO_PUBLISH), its capture started.
+ *  null if games.json has it already. */
+export async function recordGame(deps: Pick<SubmitDeps, 'games' | 'attach' | 'shoot' | 'now'>, input: { form: Pick<Submission, 'origin' | 'appId' | 'title' | 'line' | 'payoutWallet'>; holder: Holder; artistName: string; by: string }): Promise<Game | null> {
+  const { form, holder } = input, now = new Date(deps.now()).toISOString();
   let attachedAt: string | null = now, attachError: string | undefined;
   try { await deps.attach({ appId: form.appId, origin: form.origin }); } catch (error) { attachedAt = null; attachError = error instanceof Error ? error.message.slice(0, 200) : 'attach failed'; }
   const games = await readGames(deps.games);
-  if (games.some((g) => g.appId === form.appId || g.origin === form.origin)) return json({ ok: false, checks: checks.map((c) => (c.n === 8 ? { ...c, ok: false, fix: 'Already submitted.' } : c)) }, 200, h);
-  const h1 = holder as { name: string; panel: number; handle: string | null };
+  if (games.some((g) => g.appId === form.appId || g.origin === form.origin)) return null;
   const live = AUTO_PUBLISH && attachedAt !== null;
   const game: Game = {
     appId: form.appId, origin: form.origin, slug: freeSlug(form.title, games), title: form.title, line: form.line,
-    artist: { name: h1.name, panel: h1.panel, ...(h1.handle ? { handle: h1.handle } : {}) }, payoutWallet: form.payoutWallet,
-    submittedAt: now, attachedAt, status: live ? 'live' : 'pending', publishedAt: live ? now : null, shot: null,
-    order: Math.max(0, ...games.filter((g) => g.status === 'live').map((g) => g.order)) + 1, by: wallet, ...(attachError ? { attachError } : {}),
+    artist: { name: input.artistName, ...(input.artistName !== holder.name ? { wall: holder.name } : {}), panel: holder.panel, ...(holder.handle ? { handle: holder.handle } : {}) },
+    payoutWallet: form.payoutWallet, submittedAt: now, attachedAt, status: live ? 'live' : 'pending', publishedAt: live ? now : null, shot: null,
+    order: Math.max(0, ...games.filter((g) => g.status === 'live').map((g) => g.order)) + 1, ...(input.by ? { by: input.by } : {}), ...(attachError ? { attachError } : {}),
   };
   await writeGames(deps.games, [...games, game]);
   await deps.shoot(game.appId);
-  await deps.notify(game);
-  return json({ ok: true, checks, game: { appId: game.appId, title: game.title, status: game.status, attached: attachedAt !== null } }, 200, h);
+  return game;
+}
+
+/** A name of the wall as John types it (any case, or its panel number), with the wallet that holds it. */
+export async function holderOf(deps: Pick<SubmitDeps, 'people'>, typed: string): Promise<(Holder & { wallet: string }) | null> {
+  const people = JSON.parse((await deps.people.getText('people.json')) ?? '[]') as Person[], t = typed.trim().replace(/^#/, '');
+  const p = people.find((x) => x.name.toLowerCase() === t.toLowerCase()) ?? (/^\d+$/.test(t) ? people.find((x) => x.panel === Number(t)) : undefined);
+  return p && typeof p.wallet === 'string' && WALLET.test(p.wallet) ? { name: p.name, panel: p.panel, handle: p.handle, wallet: p.wallet.toLowerCase() } : null;
+}
+
+/** The title a game's page gives itself: "WALL TAGGER 2000 · THE WALL ARCADE" → "WALL TAGGER 2000". */
+export const titleOf = (html: string): string => {
+  const t = /<title[^>]*>([^<]*)<\/title>/i.exec(html)?.[1] ?? '';
+  return t.replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').split(/\s+[·|—–-]\s+/)[0]?.trim().slice(0, LIMITS.title) ?? '';
+};
+
+/** ADD A GAME (the admin page, for a game sent by DM): the name of the wall, the address, the app ID; the same eight
+ *  checks; all green, the same as a submission: attached, pending, captured, the 40% to the wallet holding that name.
+ *  The title is the page's own (EDIT it after), the line stays empty until EDIT, no mail (John is the one adding it). */
+export async function addGame(deps: SubmitDeps, body: Record<string, unknown>, admin: string): Promise<{ status: number; body: Record<string, unknown> }> {
+  const s = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+  const name = s(body.name), holder = name ? await holderOf(deps, name) : null;
+  const origin = s(body.origin).replace(/\/$/, '').toLowerCase(), appId = s(body.appId).toLowerCase();
+  const errors: Record<string, string> = {};
+  if (!name) errors.name = 'The name on the wall, as on the wall (or its panel number)';
+  if (!origin) errors.origin = 'The game address: https://<host>.srstudio.dev';
+  if (!APP_ID.test(appId)) errors.appId = 'App ID: the UUID of its config.json';
+  if (Object.keys(errors).length) return { status: 400, body: { ok: false, errors } };
+  const form = { origin, appId, title: '', line: s(body.line).slice(0, LIMITS.line), payoutWallet: holder?.wallet ?? '', panel: holder?.panel ?? null, agree: true };
+  const checks = (await runChecks(deps, form, holder)).map((c) => (c.n === 1 && !c.ok ? { ...c, fix: `No name on the wall is "${name.slice(0, 40)}": type it as on the wall, or its panel number.` } : c));
+  if (!checks.every((c) => c.ok) || !holder) return { status: 200, body: { ok: false, checks } };
+  const page = await get(deps.fetch, `${origin}/`);
+  form.title = s(body.title).slice(0, LIMITS.title) || titleOf(page.text) || `App ${appId.slice(0, 8)}`;
+  const game = await recordGame(deps, { form, holder, artistName: s(body.artistName).slice(0, 60) || holder.name, by: admin });
+  if (!game) return { status: 200, body: { ok: false, checks: checks.map((c) => (c.n === 8 ? { ...c, ok: false, fix: 'Already in games.json.' } : c)) } };
+  return { status: 200, body: { ok: true, checks, game, games: await readGames(deps.games) } };
 }
 
 export async function handleAdmin(request: Request, deps: SubmitDeps): Promise<Response> {
@@ -174,6 +220,7 @@ export async function handleAdmin(request: Request, deps: SubmitDeps): Promise<R
   if (!deps.admins.includes(wallet)) return json({ error: 'Not an admin wallet.', wallet }, 403, h);
   const games = await readGames(deps.games);
   if (body.action === 'whoami') return json({ admin: true, wallet, games }, 200, h);
+  if (body.action === 'add') { const r = await addGame(deps, body, wallet); return json(r.body, r.status, h); }
   const appId = typeof body.appId === 'string' ? body.appId : '';
   if (body.action === 'attach' || body.action === 'shoot') {
     const game = games.find((g) => g.appId === appId);
@@ -191,7 +238,7 @@ export async function handleAdmin(request: Request, deps: SubmitDeps): Promise<R
   const action = (body.action === 'order' ? { action: 'order', appIds: Array.isArray(body.appIds) ? body.appIds.filter((x): x is string => typeof x === 'string') : [] }
     : body.action === 'edit' ? { action: 'edit', appId, fields: (body.fields ?? {}) as Extract<AdminAction, { action: 'edit' }>['fields'] }
     : body.action === 'publish' || body.action === 'hide' ? { action: body.action, appId } : null) as AdminAction | null;
-  if (!action) return json({ error: 'action: whoami, publish, hide, order, edit, attach or shoot' }, 400, h);
+  if (!action) return json({ error: 'action: whoami, add, publish, hide, order, edit, attach or shoot' }, 400, h);
   const next = applyAdmin(games, action, deps.now());
   if ('error' in next) return json({ error: next.error, games }, 400, h);
   await writeGames(deps.games, next);

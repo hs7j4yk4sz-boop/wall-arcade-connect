@@ -229,3 +229,51 @@ test('runChecks reads games.json for check 8 (the five known are there)', async 
   const checks = await runChecks(w.deps, { origin: 'https://k6ag9vxz.srstudio.dev', appId: '1c10c96c-bf88-471c-88af-7f23a992a7ea', title: 'x', line: 'x', payoutWallet: HOLDER, panel: 342, agree: true }, { name: 'KARP', panel: 342 });
   assert.match(checks.find((c) => c.n === 8)?.fix ?? '', /Already submitted: THE MORNING BREW, on the hub/);
 });
+
+test('ADD A GAME (a game sent by DM): John only, the same eight checks, the 40% to the wallet holding the name', async () => {
+  const w = world();
+  const add = (over: Record<string, unknown> = {}, token = 'tok-john') => post(w.deps, '/api/admin', { accessToken: token, action: 'add', name: 'karp', origin: `${GAME}/`, appId: APP, ...over });
+  assert.equal((await add({}, 'tok-holder')).status, 403, 'not an admin wallet');
+  assert.equal(w.attached.length, 0);
+
+  const missing = await add({ name: '', appId: 'nope' });
+  assert.equal(missing.status, 400);
+  assert.deepEqual(Object.keys((await missing.json() as { errors: object }).errors).sort(), ['appId', 'name']);
+
+  const nobody = await (await add({ name: 'NOBODY' })).json() as { ok: boolean; checks: { n: number; ok: boolean; fix?: string }[] };
+  assert.equal(nobody.ok, false);
+  assert.match(nobody.checks[0]?.fix ?? '', /No name on the wall is "NOBODY"/);
+  assert.ok(nobody.checks.slice(1).every((c) => c.ok), 'the game itself is fine');
+
+  w.files['/'] = { body: '<title>KART</title><p>no credit</p>' };
+  const red = await (await add()).json() as { ok: boolean; checks: { n: number; ok: boolean }[] };
+  assert.deepEqual(red.checks.filter((c) => !c.ok).map((c) => c.n), [6]);
+  assert.equal(w.attached.length, 0, 'nothing attached while a check is red');
+
+  w.files['/'] = { body: `<!doctype html><title>WALL TAGGER 2000 · THE WALL ARCADE</title>${CREDIT}` };
+  const r = await add({ name: '#342' });
+  const body = await r.json() as { ok: boolean; game: Game; games: Game[] };
+  assert.equal(r.status, 200);
+  assert.equal(body.ok, true);
+  assert.deepEqual(w.attached, [`${APP} ${GAME}`]);
+  assert.deepEqual(w.shot, [APP]);
+  assert.equal(w.mailed.length, 0, 'no mail: John added it');
+  assert.equal(body.game.title, 'WALL TAGGER 2000', "the page's own title");
+  assert.equal(body.game.line, '');
+  assert.equal(body.game.status, 'pending');
+  assert.equal(body.game.payoutWallet, HOLDER.toLowerCase(), 'the 40% to the wallet holding KARP');
+  assert.deepEqual(body.game.artist, { name: 'KARP', panel: 342, handle: 'johnkarp' });
+  assert.equal(body.game.by, JOHN);
+  assert.equal(body.games.length, SEED.length + 1);
+
+  // signed otherwise than the wall: EDIT keeps the name on the wall; no line, not on the hub yet
+  let games = await readGames(w.games);
+  const blocked = applyAdmin(games, { action: 'publish', appId: APP }, 0);
+  assert.deepEqual(blocked, { error: 'give it its one line first (EDIT)' });
+  games = applyAdmin(games, { action: 'edit', appId: APP, fields: { artistName: 'Karp', line: 'Tag the names.' } }, 0) as Game[];
+  assert.deepEqual(games.find((g) => g.appId === APP)?.artist, { name: 'Karp', wall: 'KARP', panel: 342, handle: 'johnkarp' });
+
+  const again = await (await add()).json() as { ok: boolean; checks: { n: number; ok: boolean }[] };
+  assert.equal(again.ok, false);
+  assert.equal(again.checks.find((c) => c.n === 8)?.ok, false, 'already in games.json');
+});

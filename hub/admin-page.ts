@@ -2,9 +2,11 @@
 // the card service (POST /api/admin, cards/src/submit.ts) answers only to a wallet of its ADMIN_WALLET variable, with
 // games.json. Each button sends the Connect access token again, the service checks it with SuperRare every time.
 // PUT IT ON THE HUB: live, last column, NEW. HIDE: off the hub. ↑ ↓: the order of the columns. ?app=<appId>: that game first.
+// ADD A GAME: a game sent by DM (the name on the wall, the address, the app ID), the same eight checks as SUBMIT YOUR GAME.
 import { ConnectPopupBlockedError, createSuperRareClient } from '@rareprotocol/connect';
 
 const API = 'https://wall-arcade-cards.netlify.app/api/admin', SITE = 'https://wall-arcade-cards.netlify.app';
+type Check = { n: number; ok: boolean | null; label: string; fix?: string };
 type Game = {
   appId: string; origin: string; slug: string; title: string; line: string; artist: { name: string; wall?: string; panel: number | null; handle?: string | null };
   payoutWallet: string | null; submittedAt: string | null; attachedAt: string | null; status: 'pending' | 'live' | 'hidden';
@@ -17,7 +19,7 @@ const status = $('status'), signIn = $<HTMLButtonElement>('adminSignIn');
 const focus = new URLSearchParams(location.search).get('app');
 let games: Game[] = [];
 
-async function call(body: Record<string, unknown>): Promise<{ code: number; data: { games?: Game[]; error?: string; wallet?: string } }> {
+async function call(body: Record<string, unknown>): Promise<{ code: number; data: { games?: Game[]; error?: string; wallet?: string; ok?: boolean; checks?: Check[]; errors?: Record<string, string>; game?: Game } }> {
   const accessToken = await client.auth.getAccessToken();
   const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, accessToken }) });
   return { code: r.status, data: await r.json().catch(() => ({})) };
@@ -91,9 +93,43 @@ function draw(): void {
     const list = $(s), mine = s === 'live' ? live : games.filter((g) => g.status === s).sort((a, b) => Date.parse(b.submittedAt ?? '0') - Date.parse(a.submittedAt ?? '0'));
     list.replaceChildren(...(mine.length ? mine.map((g) => card(g, live)) : [el('p', { class: 'empty' }, 'None.')]));
   }
-  $('board').hidden = false;
+  $('board').hidden = false; $('addOpen').hidden = false;
   if (focus) document.getElementById(`g-${focus}`)?.scrollIntoView({ block: 'center' });
 }
+
+// ADD A GAME
+const addForm = $<HTMLFormElement>('addForm'), addSend = $<HTMLButtonElement>('addSend'), addChecks = $('addChecks');
+$('addOpen').addEventListener('click', () => { $('addBox').hidden = !$('addBox').hidden; if (!$('addBox').hidden) $<HTMLInputElement>('addName').focus(); });
+function showChecks(checks: Check[]): void {
+  addChecks.replaceChildren(...checks.map((c) => {
+    const li = el('li', { class: c.ok === true ? 'ok' : c.ok === false ? 'no' : 'wait' });
+    li.append(el('span', { class: 'mark' }, c.ok === true ? '✓' : c.ok === false ? '✕' : '–'), el('span', {}, c.label));
+    if (c.ok !== true && c.fix) li.append(el('span', { class: 'fix' }, c.fix));
+    return li;
+  }));
+  addChecks.hidden = false;
+}
+addForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const v = (id: string): string => $<HTMLInputElement>(id).value.trim();
+  for (const err of addForm.querySelectorAll<HTMLElement>('.err')) err.textContent = '';
+  addChecks.hidden = true; addSend.disabled = true; status.textContent = 'Checking the game… (up to 20 seconds)';
+  try {
+    const { code, data } = await call({ action: 'add', name: v('addName'), origin: v('addOrigin'), appId: v('addAppId') });
+    if (code === 400 && data.errors) {
+      for (const err of addForm.querySelectorAll<HTMLElement>('.err')) err.textContent = data.errors[err.dataset.for ?? ''] ?? '';
+      status.textContent = 'Fix the fields in red.'; return;
+    }
+    if (code !== 200) { status.textContent = data.error ?? `HTTP ${code}`; return; }
+    if (data.checks) showChecks(data.checks);
+    if (!data.ok || !data.game) { status.textContent = 'A check is red: see its remedy.'; return; }
+    if (data.games) { games = data.games; draw(); }
+    addForm.reset();
+    const g = data.game;
+    status.textContent = `${g.title} added: pending${g.attachError ? `, NOT attached (${g.attachError}): ATTACH again` : ', attached to the group'}, capture in about a minute. EDIT its line, then put it on the hub.`;
+    document.getElementById(`g-${g.appId}`)?.scrollIntoView({ block: 'center' });
+  } catch { status.textContent = 'The card service did not answer. Try again.'; } finally { addSend.disabled = false; }
+});
 
 async function act(body: Record<string, unknown>, done: string): Promise<void> {
   status.textContent = 'Saving…';
@@ -110,11 +146,11 @@ async function move(i: number, by: -1 | 1): Promise<void> {
 }
 
 async function render(): Promise<void> {
-  if (!client.auth.getSession()) { $('board').hidden = true; return; }
+  if (!client.auth.getSession()) { $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; return; }
   status.textContent = 'Checking your wallet…';
   try {
     const { code, data } = await call({ action: 'whoami' });
-    if (code === 403) { status.textContent = `Not an admin wallet${data.wallet ? ` (${data.wallet})` : ''}.`; $('board').hidden = true; return; }
+    if (code === 403) { status.textContent = `Not an admin wallet${data.wallet ? ` (${data.wallet})` : ''}.`; $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; return; }
     if (code === 401) { status.textContent = 'Sign in again.'; return; }
     if (code !== 200 || !data.games) throw new Error(`HTTP ${code}`);
     games = data.games; draw(); status.textContent = `Signed in as ${data.wallet}.`;

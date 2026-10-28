@@ -10,7 +10,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@500&family=Inter:wght@300;400&display=swap" rel="stylesheet">
 <style>
 /* The games of games.json by status, for John (a wallet of ADMIN_WALLET on the card service): PUT IT ON THE HUB, HIDE, the
-   order of the columns, EDIT, ATTACH again, a new capture. Linked from no page. hub/admin-page.ts does the rest. */
+   order of the columns, EDIT, ATTACH again, a new capture; ADD A GAME for one sent by DM (the name on the wall, its
+   address, its app ID: the same eight checks as SUBMIT YOUR GAME). Linked from no page. hub/admin-page.ts does the rest. */
 :root{--concrete:#DEDBD3;--ink:#0B0B0B;--chalk:#F2F0EB;--label:#6B685F;--rule:#C4C0B6;--blue:#2E7FD6;--green:#1F7A3A;--red:#B3261E;
   --anton:Anton,Impact,'Arial Narrow',sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--inter:Inter,system-ui,sans-serif;--padx:max(16px,4%)}
 *{box-sizing:border-box}
@@ -46,7 +47,23 @@ h2{font-size:clamp(28px,4vw,44px);margin-top:40px;border-top:1px solid var(--ink
 .g form label.wide{grid-column:1 / -1}
 .g form input{min-height:40px;padding:8px 10px;border:1px solid var(--ink);background:#fff;font:400 15px/1.2 var(--inter);border-radius:0}
 .empty{font:400 15px/1.5 var(--inter);color:var(--label)}
-@media (max-width:640px){ .g{grid-template-columns:1fr} .g img,.g .noshot{width:100%;height:auto;aspect-ratio:1} .g form{grid-template-columns:1fr} }
+.add{margin-top:24px;padding:16px;border:1px solid var(--ink);background:var(--chalk);display:flex;flex-direction:column;gap:12px}
+.add h2{margin:0;border:0;padding:0;font-size:clamp(24px,3vw,32px)}
+.add form{display:grid;grid-template-columns:1fr 2fr 2fr auto;gap:8px;align-items:end}
+.add label{display:flex;flex-direction:column;gap:4px;font:500 11px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--label)}
+.add input{min-height:44px;padding:8px 10px;border:1px solid var(--ink);background:#fff;font:400 15px/1.2 var(--inter);border-radius:0;width:100%}
+.add .err{font:400 13px/1.4 var(--inter);color:var(--red);text-transform:none;letter-spacing:0}
+.add .err:empty{display:none}
+.add .hint{font:400 13px/1.45 var(--inter);color:var(--label)}
+.checks{list-style:none;margin:0;padding:0;border:1px solid var(--ink);background:#fff}
+.checks li{display:grid;grid-template-columns:28px 1fr;gap:4px 10px;padding:10px 12px;border-top:1px solid var(--rule);font:400 14px/1.45 var(--inter)}
+.checks li:first-child{border-top:0}
+.checks .mark{font:400 18px/1 var(--anton)}
+.checks .ok .mark{color:var(--green)}
+.checks .no .mark{color:var(--red)}
+.checks .wait{color:var(--label)}
+.checks .fix{grid-column:2;color:var(--red);overflow-wrap:anywhere}
+@media (max-width:640px){ .add form{grid-template-columns:1fr} .g{grid-template-columns:1fr} .g img,.g .noshot{width:100%;height:auto;aspect-ratio:1} .g form{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -55,8 +72,20 @@ h2{font-size:clamp(28px,4vw,44px);margin-top:40px;border-top:1px solid var(--ink
   <h1 class="anton">The games</h1>
   <div class="bar">
     <button class="btn blue" id="adminSignIn" type="button">Sign in</button>
+    <button class="btn" id="addOpen" type="button" hidden>Add a game</button>
     <a class="btn" href="./" target="_blank" rel="noopener">The hub →</a>
     <p class="lbl status" id="status" aria-live="polite"></p>
+  </div>
+  <div class="add" id="addBox" hidden>
+    <h2 class="anton">Add a game</h2>
+    <p class="hint">A game sent by DM. The same eight checks as SUBMIT YOUR GAME; all green, it is attached to the group at 1 credit per play, pending, captured, the 40% to the wallet holding that name. Its title is its page's; give it its line with EDIT before putting it on the hub.</p>
+    <form id="addForm" novalidate>
+      <label>Name on the wall<input id="addName" autocomplete="off" spellcheck="false" placeholder="NISSLA or 40"><span class="err" data-for="name"></span></label>
+      <label>Game address<input id="addOrigin" type="url" autocomplete="off" spellcheck="false" placeholder="https://xxxxxxxx.srstudio.dev"><span class="err" data-for="origin"></span></label>
+      <label>App ID<input id="addAppId" autocomplete="off" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000"><span class="err" data-for="appId"></span></label>
+      <button class="btn blue" id="addSend" type="submit">Check &amp; add</button>
+    </form>
+    <ul class="checks" id="addChecks" hidden aria-live="polite"></ul>
   </div>
   <div id="board" hidden>
     <h2 class="anton">Pending</h2><div class="list" id="pending"></div>
