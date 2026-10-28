@@ -8,3 +8,7 @@
   node_bundler = "esbuild"
   external_node_modules = ["@napi-rs/canvas"]
   included_files = ["node_modules/@napi-rs/canvas-linux-x64-gnu/**"]
+
+# the 1080 × 1080 capture of a submitted game (netlify/functions/games-shot-background.mts): a headless Chromium
+[functions."games-shot-background"]
+  external_node_modules = ["@sparticuz/chromium", "playwright-core"]

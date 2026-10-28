@@ -233,17 +233,17 @@ test('the credit group as /stats last read it opens the card service: its pages,
   const { groupOf, OUR_ORIGINS } = await import('../src/group.js');
   const { handle } = await import('../src/service.js');
   const ARTIST = 'https://k6ag9vxz.srstudio.dev', BREW = '1c10c96c-bf88-471c-88af-7f23a992a7ea';
-  let file: string | null = null, reads = 0, clock = at('2026-10-28T13:00:00Z');
+  let file: string | null = '[]', reads = 0, clock = at('2026-10-28T13:00:00Z');
   const group = groupOf({ getText: async () => { reads++; return file; } }, () => clock);
   const events = memoryStore();
   const post = (origin: string, body: unknown = { event: 'game_open' }): Promise<Response> => handleEvents(new Request('https://cards.test/api/events', {
     method: 'POST', body: JSON.stringify(body), headers: { origin, 'content-type': 'text/plain' },
   }), { events, now: () => clock, group });
-  // never read yet: our three pages only (the hub included) and our two games
+  // an empty list: our pages only (the hub included) and our two games
   for (const o of OUR_ORIGINS) assert.equal((await post(o)).status, 204, o);
   assert.equal((await post(ARTIST)).status, 403);
   assert.equal((await post('https://6972mvu4.srstudio.dev', { event: 'click_play', game: BREW })).status, 400);
-  // the refresh stored the group (odd entries ignored); within the minute the old list still holds, then the new one
+  // a list as the stats refresh once stored it (odd entries ignored); within the minute the old list still holds, then the new one
   file = JSON.stringify({ at: '2026-10-28T13:00:00Z', apps: [{ id: '5932be45-7ccb-483a-916d-0dcebff40ca2', origin: 'https://yfq52eu3.srstudio.dev', title: 'FULL ROW' },
     { id: BREW, origin: ARTIST, title: 'THE MORNING BREW' }, { id: 'nope', origin: 'https://a.srstudio.dev', title: 'x' }, { id: '00000000-0000-4000-8000-000000000000', origin: 'javascript:alert(1)' }] });
   assert.equal((await post(ARTIST)).status, 403);

@@ -8,8 +8,9 @@ import { handle, type CardStore, type LeaderEntry } from '../../src/service.js';
 import { peopleSprites } from '../../src/people-service.js';
 import { peopleStore } from '../../src/people-store.js';
 import { recordEvent } from '../../src/events.js';
-import { eventStore, statsStore } from '../../src/stats-store.js';
+import { eventStore } from '../../src/stats-store.js';
 import { groupOf } from '../../src/group.js';
+import { gamesStore } from '../../src/games-store.js';
 
 const SNAPSHOT_NAMES: string[] = snapshot.positions.map((p: { n: string }) => p.n);
 let live: { at: number; names: string[] } | null = null;
@@ -47,6 +48,6 @@ async function leaderboard(g: { url: string; appId: string }): Promise<LeaderEnt
 let people: ReturnType<typeof peopleSprites> | null = null;
 // who may POST a card, and of which game: the credit group's apps and ours, as /stats last read the group (cards/src/group.ts)
 let group: ReturnType<typeof groupOf> | null = null;
-export default async (request: Request): Promise<Response> => handle(request, { store: cardStore(), wallNames, leaderboard, people: people ??= peopleSprites(peopleStore()), tag: (e) => recordEvent(eventStore(), e), group: group ??= groupOf(statsStore()) });
+export default async (request: Request): Promise<Response> => handle(request, { store: cardStore(), wallNames, leaderboard, people: people ??= peopleSprites(peopleStore()), tag: (e) => recordEvent(eventStore(), e), group: group ??= groupOf(gamesStore()) });
 
 export const config = { path: ['/api/cards', '/r/*'] };

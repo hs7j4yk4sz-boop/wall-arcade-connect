@@ -101,12 +101,13 @@ PUTTING IT ONLINE: two commands, which I run (give them to me filled in)
    The ZIP must hold, at its root: index.html, config.json, assets/, server-verifier.js, scoring-config.json.
 Then check the deployed page and Practice. Paid play works once the arcade has registered the game; do not buy credits to test.
 
-WHEN THE GAME IS ONLINE, send this to John (DM @johnkarp on X), filled in:
-  Name:
-  Game address (https://…srstudio.dev):
-  App ID:
-  I agree to enable this app in the shared arcade group at 1 credit per play.
-The game is in the arcade within 24 hours. Never send a CLI token, a wallet key or a session.
+WHEN THE GAME IS ONLINE, submit it: https://thewallarcade.superrare.com/submit.html
+  Sign in with the wallet that holds my name on the wall, then: game address (https://…srstudio.dev, no path), app ID,
+  title (24 characters at most), one line (120 at most), payout wallet, and the box: 1 credit per play, the credit line
+  stays in the game, one edition to the holder of the name my game stars.
+  It checks, green or red with the fix: the address answers; config.json has the arcade's groupId and my appId and no
+  key, token or secret; scoring-config.json is there; the page carries the credit line, linked; the leaderboard answers.
+All green: the game is in the arcade's group at once and on the hub within 24 hours. Never send a CLI token, a wallet key or a session.
 
 When you write code, give me every changed file in full, the new tests, and the exact commands to run.
 ```

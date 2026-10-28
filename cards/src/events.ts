@@ -7,7 +7,7 @@
 // folds the new ones into <UTC day>.ndjson (one line per event, its blob key in `k`, so folding twice changes nothing).
 export const EVENTS = [
   // the hub
-  'hub_view', 'click_play', 'click_make_my_game', 'builders_view', 'copy_kit', 'assets_view', 'kit_download', 'people_sign_in', 'add_yourself',
+  'hub_view', 'click_play', 'click_make_my_game', 'builders_view', 'copy_kit', 'assets_view', 'kit_download', 'people_sign_in', 'add_yourself', 'submit_view',
   // the games
   'game_open', 'practice_start', 'practice_end', 'paid_start', 'paid_end', 'paid_abandon', 'buy_click', 'buy_done', 'post_on_x', 'play_again',
   // the card service itself (never accepted from a page)

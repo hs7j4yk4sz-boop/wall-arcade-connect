@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE WALL ARCADE — submit your game</title>
+<meta name="description" content="Your game is online on SuperRare Studio: submit it to THE WALL ARCADE. Your name on the wall is the ticket.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@500&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<style>
+/* SUBMIT YOUR GAME: the builders page's look (concrete / ink / chalk, one blue), one column. hub/submit-page.ts does the rest:
+   SIGN IN with Connect, the names the wallet holds, the form, the card service's eight checks (cards/src/submit.ts). */
+:root{--concrete:#DEDBD3;--ink:#0B0B0B;--chalk:#F2F0EB;--label:#6B685F;--rule:#C4C0B6;--blue:#2E7FD6;--green:#1F7A3A;--red:#B3261E;
+  --anton:Anton,Impact,'Arial Narrow',sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--inter:Inter,system-ui,sans-serif;--padx:max(16px,5%)}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--concrete);color:var(--ink)}
+body{font-family:var(--inter);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+p,h1,h2,h3{margin:0}
+a{color:inherit}
+[hidden]{display:none !important}
+.lbl{font:500 13px/1.3 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--label)}
+.anton{font-family:var(--anton);font-weight:400;text-transform:uppercase;line-height:.9;letter-spacing:-.005em}
+.line{font:300 clamp(16px,1.5vw,19px)/1.5 var(--inter)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 28px;border:0;cursor:pointer;text-decoration:none;
+  font:400 clamp(18px,1.8vw,22px)/1 var(--anton);letter-spacing:.06em;text-transform:uppercase;background:var(--ink);color:var(--chalk)}
+.btn.blue{background:var(--blue);color:var(--ink)}
+.btn:hover{background:var(--chalk);color:var(--ink);outline:1px solid var(--ink)}
+.btn:disabled{opacity:.6;cursor:wait}
+.small{font:400 14px/1.4 var(--inter)}
+main{max-width:720px;margin:0 auto;padding:clamp(28px,5vw,64px) var(--padx) clamp(48px,7vw,96px)}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+h1{font-size:clamp(52px,9vw,112px);margin-top:20px}
+.lede{margin-top:16px;max-width:46ch}
+.box{margin-top:clamp(24px,4vw,40px);border-top:1px solid var(--ink);padding-top:20px;display:flex;flex-direction:column;gap:16px;align-items:flex-start}
+.me{font-size:clamp(36px,6vw,64px);color:var(--blue);overflow-wrap:anywhere}
+.status:empty{display:none}
+form{display:flex;flex-direction:column;gap:18px;width:100%}
+label{display:flex;flex-direction:column;gap:8px;width:100%}
+input[type=text],input[type=url],select{width:100%;min-height:52px;padding:12px 14px;border:1px solid var(--ink);background:var(--chalk);color:var(--ink);font:400 17px/1.3 var(--inter);border-radius:0}
+input:focus,select:focus{outline:2px solid var(--blue);outline-offset:1px}
+.hint{font:400 13px/1.4 var(--inter);color:var(--label)}
+.err{font:400 14px/1.4 var(--inter);color:var(--red)}
+.err:empty{display:none}
+.agree{flex-direction:row;align-items:flex-start;gap:12px;font:400 16px/1.45 var(--inter)}
+.agree input{width:22px;height:22px;margin-top:2px;flex:none;accent-color:var(--ink)}
+.checks{list-style:none;margin:0;padding:0;width:100%;border:1px solid var(--ink);background:var(--chalk)}
+.checks li{display:grid;grid-template-columns:32px 1fr;gap:4px 10px;padding:12px 14px;border-top:1px solid var(--rule)}
+.checks li:first-child{border-top:0}
+.checks .mark{font:400 20px/1 var(--anton)}
+.checks .ok .mark{color:var(--green)}
+.checks .no .mark{color:var(--red)}
+.checks .wait{color:var(--label)}
+.checks .fix{grid-column:2;font:400 14px/1.45 var(--inter);color:var(--red);overflow-wrap:anywhere}
+.done h2{font-size:clamp(40px,7vw,80px)}
+footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 24px;padding:24px var(--padx) 32px;font:400 13px/1.5 var(--inter);color:var(--label)}
+footer a{color:var(--label)}
+@media (max-width:520px){ .btn{width:100%} }
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><p class="lbl">The Wall Arcade · Submit your game</p><a class="small" href="./builders.html">← how it works</a></div>
+  <h1 class="anton">Submit your game.</h1>
+  <p class="line lede">Your game is online on SuperRare Studio. Sign in with the wallet that holds your name on the wall, fill in four fields, and the arcade checks it for you.</p>
+
+  <!-- 1. sign in -->
+  <div class="box" id="out">
+    <button class="btn blue" id="submitSignIn" type="button">Sign in</button>
+    <p class="small">SuperRare Connect opens in a popup. Sign-in only: nothing to pay, nothing to approve.</p>
+  </div>
+
+  <!-- not a holder: the form stays closed -->
+  <div class="box" id="noName" hidden>
+    <p class="line">The arcade is for the people of the wall. Your name on the wall is the ticket. Mint closes Friday Oct 30, 3pm Lisbon.</p>
+    <a class="btn" href="https://onthewall.nfcsummit.com" target="_blank" rel="noopener">Get on the wall →</a>
+    <p class="small" id="noNameWallet"></p>
+    <button class="btn" id="otherWallet" type="button">Another wallet</button>
+  </div>
+
+  <!-- 2. the form -->
+  <div class="box" id="formBox" hidden>
+    <p class="me anton" id="myName"></p>
+    <form id="form" novalidate>
+      <label id="nameRow" hidden><span class="lbl">Your name on the wall</span><select id="panel"></select></label>
+      <label><span class="lbl">Game address</span><input type="url" id="origin" placeholder="https://xxxxxxxx.srstudio.dev" autocomplete="off" spellcheck="false" required><span class="hint">Your app's address on SuperRare Studio, nothing after .dev</span><span class="err" data-for="origin"></span></label>
+      <label><span class="lbl">App ID</span><input type="text" id="appId" placeholder="00000000-0000-0000-0000-000000000000" autocomplete="off" spellcheck="false" required><span class="hint">The UUID in your config.json</span><span class="err" data-for="appId"></span></label>
+      <label><span class="lbl">Title</span><input type="text" id="title" maxlength="24" required><span class="hint">24 characters at most</span><span class="err" data-for="title"></span></label>
+      <label><span class="lbl">One line</span><input type="text" id="line" maxlength="120" required><span class="hint">What the player does, 120 characters at most. It goes under your game on the hub.</span><span class="err" data-for="line"></span></label>
+      <label><span class="lbl">Payout wallet</span><input type="text" id="payoutWallet" autocomplete="off" spellcheck="false" required><span class="hint">40% of the plays on your game, paid every Friday. The wallet you signed in with, unless you change it.</span><span class="err" data-for="payoutWallet"></span></label>
+      <label class="agree"><input type="checkbox" id="agree"><span>I agree: 1 credit per play, the wall's credit line stays in the game, one edition to the holder of the name my game stars.</span></label>
+      <span class="err" data-for="agree"></span>
+      <button class="btn blue" id="send" type="submit">Check &amp; submit →</button>
+    </form>
+    <ul class="checks" id="checks" hidden aria-live="polite"></ul>
+  </div>
+
+  <!-- 3. submitted -->
+  <div class="box done" id="done" hidden>
+    <h2 class="anton">Submitted.</h2>
+    <p class="line">John plays it, then it's on the hub, usually within 24h.</p>
+    <a class="btn" href="./">See the arcade →</a>
+  </div>
+
+  <p class="lbl status" id="status" aria-live="polite"></p>
+</main>
+<footer>
+  <span>NFC Summit 2027 · Lisbon, May 27–29</span>
+  <a href="./">← the arcade</a>
+</footer>
+<script type="module" src="./submit-page.js"></script>
+<script src="./tag.js" data-view="submit_view"></script>
+</body>
+</html>

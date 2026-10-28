@@ -9,6 +9,7 @@ import type { PeopleStore } from './people-service.js';
 import type { Person } from './people.js';
 import { currentPot, TREASURY, type PotDeps } from './pot.js';
 import { GAMES } from './validate.js';
+import { parseGames, SEED } from './games.js';
 import { buildStats, LAUNCH, lisbonDay, lisbonDayStart, windows, type GameInfo, type LeaderRow, type Pack, type Stats, type StatsInputs, type Usage, type WindowKey } from './stats.js';
 
 export const GROUP_ID = '60faaf46-ba4b-460c-a82a-adb852371a94';
@@ -18,6 +19,7 @@ export type StatsDeps = {
   fetch: typeof fetch; now(): number; token: string | undefined;
   events: EventStore; people: PeopleStore; pot: PotDeps;
   store: { getText(key: string): Promise<string | null>; set(key: string, value: string): Promise<void> };
+  games?: { getText(key: string): Promise<string | null> };     // the store "games": games.json names the games
 };
 
 /** The arcade's own games: the key our pages tag them with. Every other app of the group is listed from the group. */
@@ -77,20 +79,21 @@ export async function packsSince(fetchImpl: typeof fetch, since: number): Promis
   }
 }
 
-/** Every app of the credit group, by name: ours first, then the artists' in the group's order. A name comes from the
- *  usage report, else from the app's page title ("Dirty Signals Radio · Bully Meow · The Wall Arcade" → its first
+/** Every app of the credit group, by name: ours first, then the artists' in the group's order. A name comes from
+ *  games.json (cards/src/games.ts), else from the usage report, else from the app's page title ("Dirty Signals Radio · Bully Meow · The Wall Arcade" → its first
  *  part), kept in the stats store once found. Without a token: our two games. */
 async function gamesOf(deps: StatsDeps, client: Client | null): Promise<GameInfo[]> {
   if (!client) return OURS;
   const { group } = await client.creditGroups.get({ groupId: GROUP_ID });
   const known = JSON.parse((await deps.store.getText('games.json')) ?? '{}') as Record<string, string>;
+  const registry = parseGames((await deps.games?.getText('games.json').catch(() => null)) ?? null) ?? SEED;
   const apps = [...group.apps.map((a) => ({ id: a.productId, origin: a.origin })),
     ...[...titlesSeen.keys()].filter((id) => !group.apps.some((a) => a.productId === id)).map((id) => ({ id, origin: '' }))];
   const games = await Promise.all(apps.map(async ({ id, origin }): Promise<GameInfo> => {
     const ours = OURS.find((g) => g.id === id);
     if (ours) return ours;
     // its page, each time: whether it is online (Studio answers "App not found" for an app taken down), and its name
-    let title = titlesSeen.get(id) ?? known[id] ?? BURIED[id], online: boolean | undefined;
+    let title = registry.find((g) => g.appId === id)?.title ?? titlesSeen.get(id) ?? known[id] ?? BURIED[id], online: boolean | undefined;
     if (origin) {
       try {
         const response = await deps.fetch(`${origin}/`, { signal: AbortSignal.timeout(4000) });

@@ -119,31 +119,52 @@ the wall, the shared group id, the two commands that put a game online, SuperRar
 to send back. The hub's builders page (`hub/builders.html`) copies this repository's link followed by that kit; the build
 inlines it from the Markdown file, so the file is the only place to edit it.
 
-When an artist sends their name, game address, app ID and "I agree to enable this app in the shared arcade group at
-1 credit per play", the organizer attaches the game to the shared group in one line:
+An artist submits their game on the hub's SUBMIT YOUR GAME page (`hub/submit.html`, from the builders page's step 4):
+they sign in with SuperRare Connect, and only a wallet that holds a name of the wall opens the form (game address, app
+ID, title, one line, payout wallet, and the box: 1 credit per play, the credit line, one edition). The card service
+(`POST /api/submit`, `cards/src/submit.ts`) asks SuperRare whose session it is, then checks, each green or red with its
+remedy: the name on the wall; the address is an exact `https://<host>.srstudio.dev` that answers; its `config.json` has
+the arcade's `groupId` and the same `appId`; no key, token or secret in it; `scoring-config.json` answers; the page
+carries the credit line, linked; the leaderboard answers; the app is not submitted or attached already. All green: the
+service attaches the app to the shared group at 1 credit per play (SuperRare's SDK, `creditGroups.addApp`, with the
+`RARE_PROFILE_TOKEN` variable), records it in `games.json` as `pending`, captures its page at 1080 × 1080
+(`netlify/functions/games-shot-background.mts`: Playwright and `@sparticuz/chromium`) and mails John (Resend, when the
+`RESEND_API_KEY` and `NOTIFY_EMAIL` variables are set). Nothing reaches the hub without John's click (`AUTO_PUBLISH =
+false` in `cards/src/games.ts`).
+
+John plays it at its address, then opens `admin.html` on the hub (linked from no page; the card service answers only to
+a wallet of its `ADMIN_WALLET` variable, comma-separated): PUT IT ON THE HUB (last column, NEW), HIDE, ↑ ↓ for the order
+of the columns, EDIT, ATTACH again if the group refused it, a new capture.
+
+**One list: `games.json`** (`GET https://wall-arcade-cards.netlify.app/games.json`, public, store "games" on Netlify
+Blobs; seeded from `cards/games/seed.json`). The hub draws its columns and its boards from it (at build, and again live:
+no new build to add a game; a game's 10 s clip is `hub/clips/<slug>.mp4` with its poster `hub/shots/<slug>.jpg` when we
+make one, its capture otherwise); `/stats` names the games with it; the card service lets in their pages and their games
+with it (`cards/src/group.ts`); the table below is printed from it (`npx tsx scripts/readme-games.ts`).
+
+By hand, still: John's test play, the click, the 10 s clip of a featured game, and Friday's payment to the wallets below.
+To attach an app outside the form (then add it to `games.json` from its seed or the admin page):
 
 ```sh
 rare-profile credit-group add-game 60faaf46-ba4b-460c-a82a-adb852371a94 --app <ARTIST_APP_ID> --origin https://<artist-host>.srstudio.dev --credits 1
 ```
 
-The origin is the exact HTTPS origin (no path, no trailing slash). Attach a game only once its paid flow is ready: an
-active group gates unpaid starts at once. Then add it to the hub (`hub/src.html`: its card, with its PLAY link's
-`data-app`, its board, and the `GAMES` list); the hub shows its top 3 as soon as it has an active scoring event. The card
-service lets it in by itself: it reads the group's apps (id, origin, name) where `/stats` does, at the next refresh (every
-15 minutes, or `/stats?refresh=1`), with our three origins and our two games always (`cards/src/group.ts`). Its page may
-then `POST /api/cards` and `/api/events` (its tags are counted as its game's), the hub's PLAY is counted with its app id,
-and a board card (`{ kind: 'board', game: <app id> }`) shows its top 5 under its own name. (CLI 0.1.0 applies `add-game` but may report "Unexpected response shape"
-because the API no longer returns `creditCost`: check the group afterwards before retrying.)
+(CLI 0.1.0 applies `add-game` but may report "Unexpected response shape" because the API no longer returns
+`creditCost`: check the group afterwards before retrying.)
 
 ### The artists' games
 
 Attached to the shared group at 1 credit per play. The 40% of the jackpot that goes to the artists each Friday is paid
-to the wallet below.
+to the wallet below (from `games.json`; for THE MORNING BREW, the wallet holding K4NCUN0 unless the artist gives
+another).
 
-| Game | Artist (panel) | App ID | Origin | 40% paid to | Attached | On the hub |
+<!-- games:start -->
+| Game | Artist (name on the wall, panel) | App ID | Origin | 40% paid to | Attached | On the hub |
 |---|---|---|---|---|---|---|
-| Dirty Signals Radio | Bully Meow (BULLY-MEOW, panel 18) | `8617e311-f5d4-4e04-9010-19298f2ff9a0` | https://sy3mgnnh.srstudio.dev | `0x14076eFC88Ca7D53594500261AdA8185033e6D5B` | 27 Oct 2026 | 28 Oct 2026, card #03 and its top 3 |
-| THE MORNING BREW | osaykancuno (K4NCUN0, panel 33) | `1c10c96c-bf88-471c-88af-7f23a992a7ea` | https://k6ag9vxz.srstudio.dev | `0x41b199A5194c58b29559A482E919331E1c8EEF85` (the wallet holding K4NCUN0, unless the artist gives another) | 28 Oct 2026 | 28 Oct 2026, card #04 and its top 3 |
+| Dirty Signals Radio | Bully Meow (BULLY-MEOW, panel 18) | `8617e311-f5d4-4e04-9010-19298f2ff9a0` | https://sy3mgnnh.srstudio.dev | `0x14076eFC88Ca7D53594500261AdA8185033e6D5B` | 27 Oct 2026 | 28 Oct 2026, column 3 |
+| THE MORNING BREW | osaykancuno (K4NCUN0, panel 33) | `1c10c96c-bf88-471c-88af-7f23a992a7ea` | https://k6ag9vxz.srstudio.dev | `0x41b199A5194c58b29559A482E919331E1c8EEF85` | 28 Oct 2026 | 28 Oct 2026, column 4 |
+| WALL KART | to confirm | `5444a563-cba8-418c-9add-f367140c9511` | https://wxrb8y3y.srstudio.dev | — | 28 Oct 2026 | pending |
+<!-- games:end -->
 
 ## The people of the wall: walking sprites
 
