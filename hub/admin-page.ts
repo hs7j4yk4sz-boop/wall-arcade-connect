@@ -57,17 +57,25 @@ function card(g: Game, live: Game[]): HTMLElement {
     b.addEventListener('click', async () => { b.disabled = true; await run(); b.disabled = false; });
     acts.append(b);
   };
-  if (g.status !== 'live') button('Put it on the hub', 'blue', () => act({ action: 'publish', appId: g.appId }, `${g.title} is on the hub.`));
+  if (g.status !== 'live') button('Put it on the hub', 'blue', async () => {
+    const missing = [!g.artist.name && 'the artist', !g.line && 'its one line'].filter(Boolean).join(' and ');
+    if (missing) { form.hidden = false; say(`Give it ${missing} first (below), SAVE, then PUT IT ON THE HUB.`, true); (form.querySelector<HTMLInputElement>(!g.line ? '[name=line]' : '[name=artistName]'))?.focus(); return; }
+    await act({ action: 'publish', appId: g.appId }, `${g.title} is on the hub: the hub shows it within a minute.`, g.appId);
+  });
   if (g.status === 'live') {
     const i = live.indexOf(g);
     if (i > 0) button('↑', '', () => move(i, -1));
     if (i < live.length - 1) button('↓', '', () => move(i, 1));
   }
-  if (g.status !== 'hidden') button('Hide', 'ink', () => act({ action: 'hide', appId: g.appId }, `${g.title} is hidden.`));
-  if (g.attachError) button('Attach again', '', () => act({ action: 'attach', appId: g.appId }, `${g.title} is attached.`));
-  button('New capture', '', async () => { await act({ action: 'shoot', appId: g.appId }, 'Capturing: about a minute, then reload.'); });
+  if (g.status !== 'hidden') button('Hide', 'ink', () => act({ action: 'hide', appId: g.appId }, `${g.title} is hidden.`, g.appId));
+  if (g.attachError) button('Attach again', '', () => act({ action: 'attach', appId: g.appId }, `${g.title} is attached.`, g.appId));
+  button('New capture', '', async () => { await act({ action: 'shoot', appId: g.appId }, 'Capturing: about a minute, then reload.', g.appId); });
   button('Edit', '', async () => { form.hidden = !form.hidden; });
   body.append(acts);
+  // what a button did, or why not, right under the buttons
+  const note = el('p', { class: 'note', id: `note-${g.appId}`, 'aria-live': 'polite' });
+  const say = (text: string, bad = false): void => { note.textContent = text; note.className = `note${bad ? ' bad' : ''}`; };
+  body.append(note);
 
   const form = el('form', { hidden: '' });
   const input = (name: string, label: string, value: string, wide = false): void => {
@@ -80,7 +88,10 @@ function card(g: Game, live: Game[]): HTMLElement {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const f = new FormData(form), v = (k: string): string => String(f.get(k) ?? '').trim();
-    await act({ action: 'edit', appId: g.appId, fields: { title: v('title'), line: v('line'), artistName: v('artistName'), panel: v('panel') ? Number(v('panel')) : null, payoutWallet: v('payoutWallet') || null } }, 'Saved.');
+    const fields: Record<string, unknown> = {};               // an empty field stays as it is
+    for (const k of ['title', 'line', 'artistName', 'payoutWallet']) if (v(k)) fields[k] = v(k);
+    if (v('panel')) fields.panel = Number(v('panel'));
+    await act({ action: 'edit', appId: g.appId, fields }, `Saved.${g.status !== 'live' ? ' Now PUT IT ON THE HUB.' : ''}`, g.appId);
   });
   body.append(form);
   box.append(body);
@@ -98,7 +109,8 @@ function draw(): void {
 }
 
 // ADD A GAME
-const addForm = $<HTMLFormElement>('addForm'), addSend = $<HTMLButtonElement>('addSend'), addChecks = $('addChecks');
+const addForm = $<HTMLFormElement>('addForm'), addSend = $<HTMLButtonElement>('addSend'), addChecks = $('addChecks'), addNote = $('addNote');
+const tell = (text: string, bad = false): void => { status.textContent = addNote.textContent = text; addNote.className = `note${bad ? ' bad' : ''}`; };
 $('addOpen').addEventListener('click', () => { $('addBox').hidden = !$('addBox').hidden; if (!$('addBox').hidden) $<HTMLInputElement>('addName').focus(); });
 function showChecks(checks: Check[]): void {
   addChecks.replaceChildren(...checks.map((c) => {
@@ -113,36 +125,41 @@ addForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const v = (id: string): string => $<HTMLInputElement>(id).value.trim();
   for (const err of addForm.querySelectorAll<HTMLElement>('.err')) err.textContent = '';
-  addChecks.hidden = true; addSend.disabled = true; status.textContent = 'Checking the game… (up to 20 seconds)';
+  addChecks.hidden = true; addSend.disabled = true; tell('Checking the game… (up to 20 seconds)');
   try {
     const { code, data } = await call({ action: 'add', name: v('addName'), origin: v('addOrigin'), appId: v('addAppId') });
     if (code === 400 && data.errors) {
       for (const err of addForm.querySelectorAll<HTMLElement>('.err')) err.textContent = data.errors[err.dataset.for ?? ''] ?? '';
-      status.textContent = 'Fix the fields in red.'; return;
+      tell('Fix the fields in red.', true); return;
     }
-    if (code !== 200) { status.textContent = data.error ?? `HTTP ${code}`; return; }
+    if (code !== 200) { tell(data.error ?? `HTTP ${code}`, true); return; }
     if (data.checks) showChecks(data.checks);
-    if (!data.ok || !data.game) { status.textContent = 'A check is red: see its remedy.'; return; }
+    if (!data.ok || !data.game) { tell('A check is red: see its remedy below.', true); return; }
     if (data.games) { games = data.games; draw(); }
     addForm.reset();
     const g = data.game;
-    status.textContent = `${g.title} added: pending${g.attachError ? `, NOT attached (${g.attachError}): ATTACH again` : ', attached to the group'}, capture in about a minute. EDIT its line, then put it on the hub.`;
+    tell(`${g.title} added: pending${g.attachError ? `, NOT attached (${g.attachError}): ATTACH again` : ', attached to the group'}, capture in about a minute. EDIT its line, then put it on the hub.`);
     document.getElementById(`g-${g.appId}`)?.scrollIntoView({ block: 'center' });
-  } catch { status.textContent = 'The card service did not answer. Try again.'; } finally { addSend.disabled = false; }
+  } catch { tell('The card service did not answer. Try again.', true); } finally { addSend.disabled = false; }
 });
 
-async function act(body: Record<string, unknown>, done: string): Promise<void> {
-  status.textContent = 'Saving…';
+async function act(body: Record<string, unknown>, done: string, appId?: string): Promise<void> {
+  const show = (text: string, bad: boolean): void => {
+    status.textContent = text;
+    const note = appId ? document.getElementById(`note-${appId}`) : null;
+    if (note) { note.textContent = text; note.className = `note${bad ? ' bad' : ''}`; note.scrollIntoView({ block: 'nearest' }); }
+  };
+  show('Saving…', false);
   try {
     const { code, data } = await call(body);
     if (data.games) { games = data.games; draw(); }
-    status.textContent = code === 200 ? done : data.error ?? `HTTP ${code}`;
-  } catch { status.textContent = 'The card service did not answer. Try again.'; }
+    show(code === 200 ? done : data.error ?? `HTTP ${code}`, code !== 200);
+  } catch { show('The card service did not answer. Try again.', true); }
 }
 async function move(i: number, by: -1 | 1): Promise<void> {
   const live = games.filter((g) => g.status === 'live').sort((a, b) => a.order - b.order).map((g) => g.appId);
   [live[i], live[i + by]] = [live[i + by] as string, live[i] as string];
-  await act({ action: 'order', appIds: live }, 'Order saved: the hub follows within a minute.');
+  await act({ action: 'order', appIds: live }, 'Order saved: the hub follows within a minute.', live[i + by]);
 }
 
 async function render(): Promise<void> {

@@ -240,7 +240,7 @@ export async function handleAdmin(request: Request, deps: SubmitDeps): Promise<R
     : body.action === 'publish' || body.action === 'hide' ? { action: body.action, appId } : null) as AdminAction | null;
   if (!action) return json({ error: 'action: whoami, add, publish, hide, order, edit, attach or shoot' }, 400, h);
   const next = applyAdmin(games, action, deps.now());
-  if ('error' in next) return json({ error: next.error, games }, 400, h);
+  if ('error' in next) { console.log(`admin ${action.action} refused: ${next.error}`); return json({ error: next.error, games }, 400, h); }
   await writeGames(deps.games, next);
   return json({ ok: true, games: next }, 200, h);
 }

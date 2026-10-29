@@ -42,6 +42,9 @@ h2{font-size:clamp(28px,4vw,44px);margin-top:40px;border-top:1px solid var(--ink
 .g .meta b{font-weight:400;color:var(--label)}
 .g .warn{color:var(--red)}
 .g .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.note{margin-top:8px;font:500 13px/1.4 var(--mono);color:var(--green)}
+.note:empty{display:none}
+.note.bad{color:var(--red)}
 .g form{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .g form label{display:flex;flex-direction:column;gap:4px;font:500 11px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--label)}
 .g form label.wide{grid-column:1 / -1}
@@ -85,6 +88,7 @@ h2{font-size:clamp(28px,4vw,44px);margin-top:40px;border-top:1px solid var(--ink
       <label>App ID<input id="addAppId" autocomplete="off" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000"><span class="err" data-for="appId"></span></label>
       <button class="btn blue" id="addSend" type="submit">Check &amp; add</button>
     </form>
+    <p class="note" id="addNote" aria-live="polite"></p>
     <ul class="checks" id="addChecks" hidden aria-live="polite"></ul>
   </div>
   <div id="board" hidden>
