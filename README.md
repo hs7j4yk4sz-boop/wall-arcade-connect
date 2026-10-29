@@ -188,6 +188,11 @@ service mirrors each sheet and matches it to its panel (`cards/src/people.ts`, `
   name of the wall carries that name and its panel, any other is a guest under its Sprite Party name, with no panel
   (panel null). The hub counts them as "N characters · M on the wall". Display only: matching, aliases and the games
   still go by people.json.
+- `GET https://wall-arcade-cards.netlify.app/.well-known/jwks.json` (public, CORS *, cached 5 minutes): the RS256 key
+  (kid `potw-2026-10`) Sprite Party checks our signed capture links with. `signCaptureLink({ address, name, panel })`
+  (`cards/src/capture-link.ts`) issues the JWT: iss `https://wall-arcade-cards.netlify.app`, iat, exp 15 minutes. The
+  private key is only the Netlify secret `SPRITE_JWT_PRIVATE_KEY` (production, functions); the JWKS is derived from it.
+  Claim names and the link's format are provisional until Sprite Party's guide.
 - A sheet is a PNG of 192 × 192, transparent, 4 × 4 frames of 48 px: row = direction (0 up, 1 right, 2 down, facing
   you, 3 left), column = step (4 steps, 130 ms each). `/people/sprites.zip` holds them all.
 - In the games (`src/shell/people.ts`, `src/share/sprite.ts`, display only): FULL ROW's ROW PAINTED shows the row's
