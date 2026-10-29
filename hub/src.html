@@ -284,7 +284,8 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
 <script>
 /* games:start  THE GAMES, from the card service's games.json (cards/src/games.ts, the one list of the arcade's games): the
    live ones in their order, then YOUR GAME HERE; NEW on the live game published last; each game's 10 s clip when the hub
-   has one for its slug (CLIPS, from hub/clips/ at build), else its capture. scripts/build-hub.ts evaluates this block to
+   has one for its slug (CLIPS, from hub/clips/ at build: made by hand), else the clip of its free practice made on the
+   Mac and kept by the card service (clip: npm run clip -- <slug>), else its capture. scripts/build-hub.ts evaluates this block to
    draw the same HTML into the page at build time; the page redraws only if the live list differs. */
 var CARDS_SITE = 'https://wall-arcade-cards.netlify.app';
 function gEsc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -300,6 +301,7 @@ function gameCards(games, clips) {
   return live.map(function (g, i) {
     var title = gEsc(String(g.title).toUpperCase()), media;
     if (clips.indexOf(g.slug) >= 0) media = '<video class="shot" src="clips/' + g.slug + '.mp4" poster="shots/' + g.slug + '.jpg" autoplay muted loop playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-label="' + title + ', in play"></video>';
+    else if (g.clip && /^\/games\/[a-z0-9-]{1,64}\.mp4$/.test(g.clip)) media = '<video class="shot" src="' + CARDS_SITE + g.clip + '" poster="' + CARDS_SITE + g.clip.replace(/\.mp4$/, '.jpg') + '" autoplay muted loop playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-label="' + title + ', in play"></video>';
     else if (g.shot && /^\/games\/[0-9a-f-]{36}\.png$/.test(g.shot)) media = '<img class="shot" src="' + CARDS_SITE + g.shot + '" alt="' + title + ', in play" loading="lazy">';
     else media = '<div class="shot" role="img" aria-label="' + title + '"></div>';
     return '<article class="game"><div class="head"><h3>' + title + '</h3><span class="n">' + pad(i + 1) + '</span>' + (g.appId === fresh ? '<span class="new">NEW</span>' : '') + '</div>' +

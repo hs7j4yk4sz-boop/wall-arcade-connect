@@ -17,11 +17,14 @@ export type Game = {
   by?: string;                 // the wallet that submitted it
   attachError?: string;        // the group refused it: ATTACH again from the admin page
   shotError?: string;          // the capture failed: a new one from the admin page
+  clip?: string;               // its 10 s clip of the free practice, made on the Mac (npm run clip -- <slug>): /games/<slug>.mp4
+  clipError?: string;          // set aside by John (USE THE STILL): the capture stays on the hub
 };
 export interface GamesStore {
   getText(key: string): Promise<string | null>;
   getBytes(key: string): Promise<Uint8Array | null>;
   set(key: string, value: string | Uint8Array): Promise<void>;
+  delete(key: string): Promise<void>;
 }
 
 export const GROUP_ID = '60faaf46-ba4b-460c-a82a-adb852371a94';
@@ -61,6 +64,8 @@ export function parseGames(raw: string | null): Game[] | null {
       ...(typeof g.by === 'string' && WALLET.test(g.by) ? { by: g.by.toLowerCase() } : {}),
       ...(typeof g.attachError === 'string' && g.attachError ? { attachError: g.attachError.slice(0, 200) } : {}),
       ...(typeof g.shotError === 'string' && g.shotError ? { shotError: g.shotError.slice(0, 600) } : {}),
+      ...(typeof g.clip === 'string' && /^\/games\/[a-z0-9-]{1,64}\.mp4$/.test(g.clip) ? { clip: g.clip } : {}),
+      ...(typeof g.clipError === 'string' && g.clipError ? { clipError: g.clipError.slice(0, 600) } : {}),
     }];
   });
 }
@@ -90,7 +95,7 @@ export const writeGames = (store: GamesStore, games: Game[]): Promise<void> => s
 /** What the admin page can do to one game; each returns the new list or an error for John. */
 export type AdminAction =
   | { action: 'publish'; appId: string } | { action: 'hide'; appId: string }
-  | { action: 'order'; appIds: string[] }
+  | { action: 'order'; appIds: string[] } | { action: 'still'; appId: string }
   | { action: 'edit'; appId: string; fields: { title?: string; line?: string; artistName?: string; panel?: number | null; payoutWallet?: string | null } };
 
 export function applyAdmin(games: Game[], a: AdminAction, now: number): Game[] | { error: string } {
@@ -108,6 +113,7 @@ export function applyAdmin(games: Game[], a: AdminAction, now: number): Game[] |
     return games.map((g) => (g === game ? { ...g, status: 'live' as const, publishedAt: g.status === 'live' ? g.publishedAt : new Date(now).toISOString(), order: g.status === 'live' ? g.order : last + 1 } : g));
   }
   if (a.action === 'hide') return games.map((g) => (g === game ? { ...g, status: 'hidden' as const } : g));
+  if (a.action === 'still') return games.map((g) => (g === game ? (({ clip: _, ...rest }) => ({ ...rest, clipError: 'set aside by John: the still capture' }))(g) : g));
   const f = a.fields, next = { ...game, artist: { ...game.artist } };
   if (f.title !== undefined) { const t = text(f.title, LIMITS.title); if (!t) return { error: 'title: 1 to 24 characters' }; next.title = t; }
   if (f.line !== undefined) { const l = text(f.line, LIMITS.line); if (!l) return { error: 'one line: 1 to 120 characters' }; next.line = l; }

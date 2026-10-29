@@ -11,6 +11,7 @@ type Game = {
   appId: string; origin: string; slug: string; title: string; line: string; artist: { name: string; wall?: string; panel: number | null; handle?: string | null };
   payoutWallet: string | null; submittedAt: string | null; attachedAt: string | null; status: 'pending' | 'live' | 'hidden';
   publishedAt: string | null; shot: string | null; order: number; by?: string; attachError?: string; shotError?: string;
+  clip?: string; clipError?: string;
 };
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -35,7 +36,14 @@ const day = (t: string | null): string => (t ? new Date(t).toLocaleString('en-GB
 
 function card(g: Game, live: Game[]): HTMLElement {
   const box = el('div', { class: `g${g.appId === focus ? ' focus' : ''}`, id: `g-${g.appId}` });
-  box.append(g.shot ? el('img', { src: `${SITE}${g.shot}?v=${Date.now() % 1e6}`, alt: g.title, loading: 'lazy' }) : el('div', { class: 'noshot' }, g.shotError ? 'capture failed' : 'no capture yet'));
+  const v = `?v=${Date.now() % 1e6}`;
+  const video = (src: string): HTMLVideoElement => {
+    const node = el('video', { src: `${SITE}${src}${v}`, poster: `${SITE}${src.replace(/\.mp4$/, '.jpg')}${v}`, loop: '', playsinline: '' });
+    node.muted = true; node.autoplay = true;                  // muted as a property: a script-made video plays only so
+    return node;
+  };
+  box.append(g.clip ? video(g.clip)
+    : g.shot ? el('img', { src: `${SITE}${g.shot}${v}`, alt: g.title, loading: 'lazy' }) : el('div', { class: 'noshot' }, g.shotError ? 'capture failed' : 'no capture yet'));
   const body = el('div');
   body.append(el('h3', {}, g.title));
   const meta = el('div', { class: 'meta' });
@@ -49,6 +57,7 @@ function card(g: Game, live: Game[]): HTMLElement {
   line('group', g.attachError ? `NOT attached: ${g.attachError}` : g.attachedAt ? `attached ${day(g.attachedAt)}` : 'ours', Boolean(g.attachError));
   if (g.status === 'live') line('on the hub', `column ${live.indexOf(g) + 1}${g.publishedAt ? `, since ${day(g.publishedAt)}` : ''}`);
   if (g.shotError) line('capture', g.shotError, true);
+  line('clip', g.clip ? 'its free practice, 10 s' : g.clipError ? `none: ${g.clipError}` : `none yet: npm run clip -- ${g.slug} (on the Mac)`);
   body.append(meta);
 
   const acts = el('div', { class: 'acts' });
@@ -69,6 +78,7 @@ function card(g: Game, live: Game[]): HTMLElement {
   }
   if (g.status !== 'hidden') button('Hide', 'ink', () => act({ action: 'hide', appId: g.appId }, `${g.title} is hidden.`, g.appId));
   if (g.attachError) button('Attach again', '', () => act({ action: 'attach', appId: g.appId }, `${g.title} is attached.`, g.appId));
+  if (g.clip) button('Use the still', '', () => act({ action: 'still', appId: g.appId }, 'The clip is set aside: the still capture is on the hub.', g.appId));
   button('New capture', '', async () => { await act({ action: 'shoot', appId: g.appId }, 'Capturing: about a minute, then reload.', g.appId); });
   button('Edit', '', async () => { form.hidden = !form.hidden; });
   body.append(acts);

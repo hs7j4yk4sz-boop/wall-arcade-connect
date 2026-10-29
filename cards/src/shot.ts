@@ -20,3 +20,4 @@ export async function shootGame(store: GamesStore, appId: string, shoot: Shooter
   }));
   return Boolean(png);
 }
+

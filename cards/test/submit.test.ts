@@ -19,6 +19,7 @@ function memory(): GamesStore & { data: Map<string, string | Uint8Array> } {
     getText: async (k) => { const v = data.get(k); return typeof v === 'string' ? v : null; },
     getBytes: async (k) => { const v = data.get(k); return v instanceof Uint8Array ? v : null; },
     set: async (k, v) => { data.set(k, v); },
+    delete: async (k) => { data.delete(k); },
   };
 }
 /** The world as the service sees it: Connect sessions, an artist's game (its files, changeable per test), the wall. */

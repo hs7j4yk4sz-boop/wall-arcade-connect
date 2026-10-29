@@ -34,3 +34,15 @@ test('a game put on the hub: its column last, NEW moves to it, its capture witho
   assert.ok(!html.includes('javascript:'));
   assert.equal(draw.liveGames(games).length, 5);
 });
+
+test("a game with the card service's clip: its video from the service, its poster; a hand-made clip of the hub first", () => {
+  const tagger = { appId: 'd321d819-33a3-4c80-8f29-a68983287e33', origin: 'https://92hxxw5w.srstudio.dev', slug: 'wall-tagger-2000', title: 'WALL TAGGER 2000', line: 'Tag.', artist: { name: 'Nissla', panel: 40 },
+    status: 'live', order: 5, publishedAt: '2026-10-29T00:50:00Z', shot: '/games/d321d819-33a3-4c80-8f29-a68983287e33.png', clip: '/games/wall-tagger-2000.mp4' };
+  const html = draw.gameCards([...seed, tagger], CLIPS);
+  assert.match(html, /<video class="shot" src="https:\/\/wall-arcade-cards\.netlify\.app\/games\/wall-tagger-2000\.mp4" poster="https:\/\/wall-arcade-cards\.netlify\.app\/games\/wall-tagger-2000\.jpg" autoplay muted loop playsinline/);
+  assert.ok(!html.includes('d321d819-33a3-4c80-8f29-a68983287e33.png'), 'the clip, not the capture');
+  const own = draw.gameCards([...seed, tagger], [...CLIPS, 'wall-tagger-2000']);
+  assert.match(own, /src="clips\/wall-tagger-2000\.mp4" poster="shots\/wall-tagger-2000\.jpg"/);
+  assert.ok(!own.includes('wall-tagger-2000.mp4" poster="https'), "the hub's own clip first");
+  assert.ok(!draw.gameCards([...seed, { ...tagger, clip: 'javascript:x' }], CLIPS).includes('javascript:'));
+});

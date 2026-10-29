@@ -132,6 +132,15 @@ service attaches the app to the shared group at 1 credit per play (SuperRare's S
 `RESEND_API_KEY` and `NOTIFY_EMAIL` variables are set). Nothing reaches the hub without John's click (`AUTO_PUBLISH =
 false` in `cards/src/games.ts`).
 
+**Its clip, made on the Mac:** `npm run clip -- <slug>` (`scripts/clip-game.ts`). The local Chrome (WebGL on the
+graphics card) plays the game's free practice as a stand-in (`cards/src/autoplay.ts`: the free entry, then the arrows,
+Space, Enter, digits and taps inside the game; never a paid play, a sign-in or a link out) on a virtual clock, a picture
+per frame; ffmpeg cuts the 10 s and the square where it moves most (`cards/src/clip.ts`): 720 × 720, 24 frames a second,
+muted H.264, its poster. Both go to the card service's store (`clips/<slug>.mp4`, `.jpg`, served at
+`/games/<slug>.mp4` with byte ranges, for Safari) and `games.json` points at it: the hub plays it within a minute, after
+a hand-made clip of the hub (`hub/clips/<slug>.mp4`) if there is one, before the capture. If the clip fails, nothing
+changes: the still capture stays (five minutes at most per game). USE THE STILL on the admin page sets a clip aside.
+
 John plays it at its address, then opens `admin.html` on the hub (linked from no page; the card service answers only to
 a wallet of its `ADMIN_WALLET` variable, comma-separated): PUT IT ON THE HUB (last column, NEW), HIDE, ↑ ↓ for the order
 of the columns, EDIT, ATTACH again if the group refused it, a new capture. ADD A GAME, for a game sent by DM: the name on
@@ -145,7 +154,8 @@ no new build to add a game; a game's 10 s clip is `hub/clips/<slug>.mp4` with it
 make one, its capture otherwise); `/stats` names the games with it; the card service lets in their pages and their games
 with it (`cards/src/group.ts`); the table below is printed from it (`npx tsx scripts/readme-games.ts`).
 
-By hand, still: John's test play, the click, the 10 s clip of a featured game, and Friday's payment to the wallets below.
+By hand, still: John's test play, the click, a better clip when the stand-in's isn't good enough, and Friday's payment to
+the wallets below.
 To attach an app outside the form and the admin page (then add it to `games.json`):
 
 ```sh

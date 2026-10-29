@@ -1,6 +1,7 @@
 // SUBMIT YOUR GAME (hub/submit.html) and the admin page (hub/admin.html), independent of Netlify:
 //   GET  /games.json          the arcade's games (cards/src/games.ts), public, CORS *, cached 60 s
 //   GET  /games/<appId>.png   a game's 1080 × 1080 capture (netlify/functions/games-shot-background.mts)
+//   GET  /games/<slug>.mp4    its 10 s clip of the free practice, .jpg its poster (made on the Mac: npm run clip -- <slug>)
 //   POST /api/submit          an artist's game: who they are (their SuperRare Connect session, checked with SuperRare),
 //                             the eight checks below, each green or red with its remedy; all green: attached to the
 //                             credit group at 1 credit per play, recorded as pending, captured, John told by mail
@@ -237,8 +238,8 @@ export async function handleAdmin(request: Request, deps: SubmitDeps): Promise<R
   }
   const action = (body.action === 'order' ? { action: 'order', appIds: Array.isArray(body.appIds) ? body.appIds.filter((x): x is string => typeof x === 'string') : [] }
     : body.action === 'edit' ? { action: 'edit', appId, fields: (body.fields ?? {}) as Extract<AdminAction, { action: 'edit' }>['fields'] }
-    : body.action === 'publish' || body.action === 'hide' ? { action: body.action, appId } : null) as AdminAction | null;
-  if (!action) return json({ error: 'action: whoami, add, publish, hide, order, edit, attach or shoot' }, 400, h);
+    : body.action === 'publish' || body.action === 'hide' || body.action === 'still' ? { action: body.action, appId } : null) as AdminAction | null;
+  if (!action) return json({ error: 'action: whoami, add, publish, hide, order, edit, still, attach or shoot' }, 400, h);
   const next = applyAdmin(games, action, deps.now());
   if ('error' in next) { console.log(`admin ${action.action} refused: ${next.error}`); return json({ error: next.error, games }, 400, h); }
   await writeGames(deps.games, next);
@@ -254,6 +255,20 @@ export async function handleGames(request: Request, deps: Pick<SubmitDeps, 'game
   if (shot) {
     const png = await deps.games.getBytes(`shots/${shot[1]}.png`);
     return png ? new Response(png, { headers: { ...open, 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=300' } }) : new Response('not found', { status: 404, headers: open });
+  }
+  const clip = /^\/games\/([a-z0-9-]{1,64})\.(mp4|jpg)$/.exec(path);
+  if (clip) {
+    const bytes = await deps.games.getBytes(`clips/${clip[1]}.${clip[2]}`);
+    if (!bytes) return new Response('not found', { status: 404, headers: open });
+    const type = clip[2] === 'mp4' ? 'video/mp4' : 'image/jpeg', base = { ...open, 'Content-Type': type, 'Cache-Control': 'public, max-age=300', 'Accept-Ranges': 'bytes' };
+    // Safari plays a video only from a server that answers its byte ranges
+    const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.get('range') ?? '');
+    if (range && (range[1] || range[2])) {
+      const size = bytes.byteLength, from = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2])), to = range[1] && range[2] ? Math.min(size - 1, Number(range[2])) : size - 1;
+      if (from > to || from >= size) return new Response(null, { status: 416, headers: { ...base, 'Content-Range': `bytes */${size}` } });
+      return new Response(bytes.slice(from, to + 1), { status: 206, headers: { ...base, 'Content-Range': `bytes ${from}-${to}/${size}`, 'Content-Length': String(to - from + 1) } });
+    }
+    return new Response(bytes, { headers: { ...base, 'Content-Length': String(bytes.byteLength) } });
   }
   return new Response('not found', { status: 404, headers: open });
 }

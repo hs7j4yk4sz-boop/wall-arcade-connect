@@ -1,5 +1,6 @@
 // A background function (up to 15 minutes): the capture of one game of games.json (cards/src/shot.ts), with Playwright
-// and @sparticuz/chromium. POST {"appId"}; only a game already in games.json is captured.
+// and @sparticuz/chromium. POST {"appId"}; only a game already in games.json is captured. Its 10 s clip is made on the
+// Mac (npm run clip -- <slug>): a 3D game drawn in software here is too slow to film.
 import { chromium as playwright } from 'playwright-core';
 import { APP_ID } from '../../src/games.js';
 import { gamesStore } from '../../src/games-store.js';
@@ -12,9 +13,11 @@ export default async (request: Request): Promise<void> => {
   // 22 runtime name; Netlify's newer runtimes are the same system under another name (without them: exit code 127)
   if (!/(20|22)\.x/.test(`${process.env.AWS_EXECUTION_ENV ?? ''} ${process.env.AWS_LAMBDA_JS_RUNTIME ?? ''}`)) process.env.AWS_LAMBDA_JS_RUNTIME = 'nodejs22.x';
   const { default: chromium } = await import('@sparticuz/chromium');
-  await shootGame(gamesStore(), appId, async (url) => {
-    chromium.setGraphicsMode = true;                          // WebGL in software (SwiftShader): a 3D game draws too
-    const browser = await playwright.launch({ executablePath: await chromium.executablePath(), args: chromium.args, headless: true });
+  chromium.setGraphicsMode = true;                            // WebGL in software (SwiftShader): a 3D game draws too
+  const store = gamesStore(), launch = async () => playwright.launch({ executablePath: await chromium.executablePath(), args: chromium.args, headless: true });
+
+  await shootGame(store, appId, async (url) => {
+    const browser = await launch();
     try {
       const page = await browser.newPage({ viewport: { width: 1080, height: 1080 } });
       await page.goto(url, { waitUntil: 'load', timeout: 30_000 });
