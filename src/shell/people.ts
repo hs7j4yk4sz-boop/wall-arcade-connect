@@ -1,7 +1,8 @@
 // The people of the wall in the games: the card service's people.json (one object per named panel, its walking sprite
 // or null), read once per page, display only. Names match as on the card service (no case, spaces or accents); a sheet
 // is loaded on first use (CORS *, so it can be drawn on a canvas) and `onPeople` is told when it arrives. The Sprite
-// Party capture link is never in the page: the card service gives it to a wallet that holds a name (/people/capture).
+// Party capture link is never in the page: at the click, the page sends its Connect session to the card service (POST
+// /people/capture), which checks it with SuperRare and answers a link signed for that wallet's name (2 minutes to open it).
 import { CARD_SERVICE } from '../share/post.js';
 import { nameKey, type SpriteSheet } from '../share/sprite.js';
 
@@ -37,24 +38,28 @@ export function missingCharacter(wallet: string | undefined): string | null {
   const mine = peopleOf(wallet);
   return mine.length && !mine.some((p) => p.sprite) ? (mine[0] as Person).name : null;
 }
-/** The capture link for a wallet that holds a name of the wall (asked once per wallet), else null. */
-const captures = new Map<string, Promise<string | null>>();
-const captured = new Map<string, string>();
-export function captureFor(wallet: string): Promise<string | null> {
-  const key = wallet.toLowerCase();
-  let ask = captures.get(key);
-  if (!ask) {
-    ask = fetch(`${CARD_SERVICE}/people/capture?wallet=${key}`).then((r) => (r.ok ? r.json() : null)).then((d: { url?: unknown } | null) => {
-      const url = d && typeof d.url === 'string' && /^https:\/\/www\.spriteparty\.com\/p\/[A-Za-z0-9_-]+\/capture$/.test(d.url) ? d.url : null;
-      if (url) captured.set(key, url);
-      return url;
-    }, () => { captures.delete(key); return null; });
-    captures.set(key, ask);
+const CAPTURE = /^https:\/\/www\.spriteparty\.com\/p\/[A-Za-z0-9_-]+\/capture#handoff=[\w-]+\.[\w-]+\.[\w-]+$/;
+/**
+ * Opens Sprite Party's capture for the signed-in holder of a name: a window in the instant of the click (no popup
+ * blocker), sent to the link once the card service has signed it; every click asks for a new token. Null when it opened,
+ * else the line to show.
+ */
+export async function openCapture(accessToken: () => Promise<string>): Promise<string | null> {
+  const win = window.open('', '_blank');
+  try {
+    const response = await fetch(`${CARD_SERVICE}/people/capture`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken: await accessToken() }) });
+    const data = await response.json().catch(() => ({})) as { url?: unknown };
+    if (!response.ok || typeof data.url !== 'string' || !CAPTURE.test(data.url)) {
+      win?.close();
+      return response.status === 401 ? 'Sign in again: your SuperRare session is not valid any more.' : 'Sprite Party could not be opened. Try again.';
+    }
+    if (win && !win.closed) { win.opener = null; win.location.href = data.url; } else window.location.href = data.url;
+    return null;
+  } catch {
+    win?.close();
+    return 'Sprite Party could not be opened. Try again.';
   }
-  return ask;
 }
-/** The capture link already given for this wallet, if any. */
-export const knownCapture = (wallet: string | undefined): string | null => (wallet ? captured.get(wallet.toLowerCase()) ?? null : null);
 /** Called when people.json or a sheet arrives (a game redraws). */
 export const onPeople = (f: () => void): void => { listeners.push(f); };
 

@@ -7,18 +7,26 @@
 //   GET /people/sprites/<id>.png  a mirrored sprite sheet (CORS *, immutable): games draw it on a canvas
 //   GET /people/sprites.zip     every sprite sheet and people.json, rebuilt when they change
 //   GET /people/refresh         reads the sources now (also every 5 minutes, netlify/functions/people-refresh.mts)
-//   GET /people/capture?wallet=0x…  for a wallet that holds a name of the wall: { url, names } (the Sprite Party capture
-//                               link and its names, the first one without a character first); 404 for anyone else. The
-//                               pages never carry the link: they ask here once a holder is signed in.
+//   POST /people/capture        { accessToken }: the player's SuperRare Connect session, checked with SuperRare as for
+//                               /api/submit. For a wallet that holds a name of the wall: { url, name, panel, expiresAt },
+//                               the Sprite Party capture link with a fresh signed token (cards/src/capture-link.ts) for
+//                               its first name without a character (else its first name); 401 for a session SuperRare
+//                               does not know, 404 for a wallet without a name. Asked at the click on ADD YOURSELF
+//                               (the token lives 2 minutes, enough to open the link); a new click asks again. From the
+//                               arcade's pages only (CORS: the hub and the games, cards/src/group.ts). The pages never
+//                               carry the link.
 import { zipSync, strToU8 } from 'fflate';
-import { CAPTURE_URL, MANIFEST_URL, POSITIONS_URL, SPRITE_PARTY, buildPeople, isSpritePng, keyOf, validSprites, type Mirrored, type Person, type Position } from './people.js';
+import { TTL_SECONDS, captureLink, type CaptureSubject } from './capture-link.js';
+import { MANIFEST_URL, POSITIONS_URL, SPRITE_PARTY, buildPeople, isSpritePng, keyOf, validSprites, type Mirrored, type Person, type Position } from './people.js';
 
 export interface PeopleStore {
   getText(key: string): Promise<string | null>;
   getBytes(key: string): Promise<Uint8Array | null>;
   set(key: string, value: string | Uint8Array): Promise<void>;
 }
-export type PeopleDeps = { store: PeopleStore; fetch: typeof fetch; aliases: Record<string, string>; now(): number };
+/** The capture's needs: who a Connect session is (SuperRare's answer), the signing, which pages may ask. */
+export type CaptureDeps = { walletOf(token: unknown): Promise<string | null>; sign(subject: CaptureSubject): string; allowed(origin: string | null): Promise<boolean> };
+export type PeopleDeps = { store: PeopleStore; fetch: typeof fetch; aliases: Record<string, string>; now(): number; capture?: CaptureDeps };
 
 const cors = { 'Access-Control-Allow-Origin': '*' };
 const json = (body: string, cache = 'public, max-age=60', status = 200): Response =>
@@ -67,6 +75,7 @@ export async function refresh(deps: PeopleDeps): Promise<{ sprites: number; mirr
 
 export async function handlePeople(request: Request, deps: PeopleDeps): Promise<Response> {
   const path = new URL(request.url).pathname;
+  if (path === '/people/capture') return handleCapture(request, deps);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...cors, 'Access-Control-Allow-Methods': 'GET' } });
   if (request.method !== 'GET' && request.method !== 'HEAD') return json('{"error":"GET only"}', 'no-store', 405);
   if (path === '/people/refresh') {
@@ -78,14 +87,6 @@ export async function handlePeople(request: Request, deps: PeopleDeps): Promise<
     let body = await deps.store.getText(doc);
     if (body === null) { try { await refresh(deps); body = await deps.store.getText(doc); } catch { /* answered below */ } }
     return body === null ? json('{"error":"not ready"}', 'no-store', 503) : json(body);
-  }
-  if (path === '/people/capture') {
-    const wallet = (new URL(request.url).searchParams.get('wallet') ?? '').toLowerCase();
-    if (!/^0x[0-9a-f]{40}$/.test(wallet)) return json('{"error":"wallet: 0x and 40 hex digits"}', 'no-store', 400);
-    const people = JSON.parse((await deps.store.getText('people.json')) ?? '[]') as Person[];
-    const mine = people.filter((p) => p.wallet === wallet).sort((a, b) => Number(Boolean(a.sprite)) - Number(Boolean(b.sprite)));
-    if (!mine.length) return json('{"error":"this wallet holds no name of the wall"}', 'no-store', 404);
-    return json(JSON.stringify({ url: CAPTURE_URL, names: mine.map((p) => ({ name: p.name, panel: p.panel, character: Boolean(p.sprite) })) }), 'private, max-age=60');
   }
   const sprite = /^\/people\/sprites\/([0-9a-f-]{36})\.png$/.exec(path);
   if (sprite) {
@@ -99,6 +100,30 @@ export async function handlePeople(request: Request, deps: PeopleDeps): Promise<
       : new Response('not ready', { status: 503, headers: cors });
   }
   return new Response('not found', { status: 404, headers: cors });
+}
+
+/** POST /people/capture: a fresh capture link for the signed-in holder of a name of the wall (see the top of the file). */
+async function handleCapture(request: Request, deps: PeopleDeps): Promise<Response> {
+  const origin = request.headers.get('origin'), capture = deps.capture;
+  const allowed = capture ? await capture.allowed(origin) : false;
+  const h: Record<string, string> = allowed && origin ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : { Vary: 'Origin' };
+  const answer = (body: unknown, status: number): Response => new Response(JSON.stringify(body), { status, headers: { ...h, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...h, 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600' } });
+  if (request.method !== 'POST') return answer({ error: 'POST { accessToken } from the arcade\'s pages' }, 405);
+  if (!capture) return answer({ error: 'capture links are not set up' }, 503);
+  if (!allowed) return answer({ error: "from the arcade's pages only" }, 403);
+  let body: { accessToken?: unknown };
+  try { body = await request.json() as { accessToken?: unknown }; } catch { return answer({ error: 'JSON body' }, 400); }
+  const wallet = await capture.walletOf(body?.accessToken);
+  if (!wallet) return answer({ error: 'Sign in again: your SuperRare session is not valid any more.' }, 401);
+  const people = JSON.parse((await deps.store.getText('people.json')) ?? '[]') as Person[];
+  const mine = people.filter((p) => p.wallet === wallet);
+  if (!mine.length) return answer({ error: 'this wallet holds no name of the wall' }, 404);
+  const pick = mine.find((p) => !p.sprite) ?? (mine[0] as Person);
+  let jwt: string;
+  try { jwt = capture.sign({ wallet, panel: pick.panel, name: pick.name }); } catch { return answer({ error: 'the capture cannot be signed right now' }, 503); }
+  const exp = (JSON.parse(Buffer.from(jwt.split('.')[1] ?? '', 'base64url').toString()) as { exp?: number }).exp;
+  return answer({ url: captureLink(jwt), name: pick.name, panel: pick.panel, expiresAt: new Date((exp ?? deps.now() / 1000 + TTL_SECONDS) * 1000).toISOString() }, 200);
 }
 
 /** For the cards (src/service.ts): the sprite id of each name (people.json, read at most once a minute) and a mirrored

@@ -250,8 +250,8 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
   </div>
 </section>
 
-<!-- 6. people of the wall: the counter (every character of the event · those on the wall), ADD YOURSELF for a holder signed in with Connect (hub/people-gate.ts injects
-     the capture link; it is never in this page) or the SIGN IN line, the sprites of the wall, the Sprite Party scene -->
+<!-- 6. people of the wall: the counter (every character of the event · those on the wall), ADD YOURSELF for a holder signed in with Connect (hub/people-gate.ts asks
+     the card service for a freshly signed capture link at the click; no link is ever in this page) or the SIGN IN line, the sprites of the wall, the Sprite Party scene -->
 <section class="people" id="people">
   <div class="wrap two">
     <div class="side">
@@ -264,7 +264,7 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
         </div>
         <div id="gateIn" hidden>
           <p class="me anton" id="myName"></p>
-          <a class="btn" id="addYourself" target="_blank" rel="noopener">ADD YOURSELF <span>→</span></a>
+          <button class="btn" id="addYourself" type="button">ADD YOURSELF <span>→</span></button>
           <p class="hint" id="gateHint"></p>
         </div>
         <p class="lbl status" id="gateStatus" aria-live="polite"></p>

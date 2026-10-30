@@ -4,8 +4,10 @@
 //   - Sprite Party, event "PEOPLE OF THE WALL (NFC SUMMIT 2027)": GET https://www.spriteparty.com/api/party?party=…
 //     (sprites: { id, name, src, cols, rows }), PNG 192 × 192, a 4 × 4 grid of 48 × 48 frames; no CORS either
 //   - people/aliases.json: a sprite's "Player name" → the panel's name, when they do not match by themselves
-// A sprite belongs to the panel(s) whose name equals its "Player name" ignoring case, spaces and accents (or through an
-// alias). Each new PNG is mirrored once (it is immutable at Sprite Party too) and served from here with CORS, so games
+// A sprite made through one of our signed capture links (cards/src/capture-link.ts) carries ref (the panel), recipientWallet
+// and partnerIssuer (our issuer): it belongs to that panel, if the wallet holds it on the wall; else to no panel (a guest),
+// never to another by its name. Any other sprite belongs to the panel(s) whose name equals its "Player name" ignoring case,
+// spaces and accents (or through an alias). Each new PNG is mirrored once (it is immutable at Sprite Party too) and served from here with CORS, so games
 // can draw it on a canvas. Sprites matching no panel are listed apart (unmatched.json) and are no one in the games.
 // people/all.json, for the hub's grid only (display, for now): every sprite of the event, newest first, a matched one
 // under its name of the wall and its panel, the others under their Sprite Party name as "guest", with no panel.
@@ -14,11 +16,11 @@ export const SPRITE_PARTY = 'https://www.spriteparty.com';
 export const MANIFEST_URL = `${SPRITE_PARTY}/api/party?party=${PARTY}`;
 export const POSITIONS_URL = 'https://onthewall.nfcsummit.com/api/positions';
 export const CAPTURE_URL = `${SPRITE_PARTY}/p/${PARTY}/capture`;
-export const SITE = 'https://wall-arcade-cards.netlify.app';
+export const SITE = 'https://wall-arcade-cards.netlify.app';     // also the capture tokens' issuer (no trailing slash)
 export const FRAME = 48, COLS = 4, ROWS = 4;
 
 export type Position = { position: number; tier: string; minted?: boolean; name?: string | null; owner?: string | null; xHandle?: string | null; updatedAt?: string };
-export type ManifestSprite = { id: string; name: string; src: string; cols: number; rows: number };
+export type ManifestSprite = { id: string; name: string; src: string; cols: number; rows: number; ref?: unknown; recipientWallet?: unknown; partnerIssuer?: unknown };
 export type Manifest = { sprites: ManifestSprite[] };
 export type Sprite = { id: string; url: string; cols: 4; rows: 4; frame: 48 };
 export type Person = { panel: number; name: string; handle: string | null; wallet?: string; sprite: Sprite | null; updatedAt: string | null };
@@ -48,6 +50,18 @@ export function isSpritePng(bytes: Uint8Array): boolean {
   return view.getUint32(16) === COLS * FRAME && view.getUint32(20) === ROWS * FRAME;
 }
 
+/** A sprite made through our capture link: its panel and wallet (ref, recipientWallet, partnerIssuer = our issuer). */
+function handedOff(s: ManifestSprite): { panel: number; wallet: string } | null {
+  const ref = typeof s.ref === 'number' ? String(s.ref) : s.ref;   // our token sends it as a string; a number is the same panel
+  if (s.partnerIssuer !== SITE || typeof ref !== 'string' || !/^[1-9]\d*$/.test(ref) || typeof s.recipientWallet !== 'string') return null;
+  return { panel: Number(ref), wallet: s.recipientWallet.toLowerCase() };
+}
+/** The panel of a hand-off, if the wallet holds it on the wall (its owner); else none. */
+function holderPanel(byPanel: Map<number, Position>, h: { panel: number; wallet: string }): Position[] | undefined {
+  const p = byPanel.get(h.panel);
+  return p && p.owner && p.owner.toLowerCase() === h.wallet ? [p] : undefined;
+}
+
 /**
  * people.json (one object per named panel of the wall, in wall order), unmatched.json, stats.json and all.json (every
  * mirrored sprite, newest first: the manifest lists them oldest first), from the wall, the manifest's (mirrored) sprites
@@ -61,9 +75,11 @@ export function buildPeople(positions: Position[], sprites: ManifestSprite[], al
   const aliasKeys = new Map(Object.entries(aliases).map(([from, to]) => [keyOf(from), keyOf(to)]));
   const spriteOf = new Map<number, ManifestSprite>();
   const unmatched: Unmatched[] = [], all: Character[] = [];
+  const byPanel = new Map(panels.map((p) => [p.position, p]));
   for (const s of sprites) {
     if (!mirrored[s.id]) continue;                                    // not served yet: next refresh
-    const key = keyOf(s.name), target = byKey.get(key) ?? byKey.get(aliasKeys.get(key) ?? '');
+    const key = keyOf(s.name), handoff = handedOff(s);
+    const target = handoff ? holderPanel(byPanel, handoff) : byKey.get(key) ?? byKey.get(aliasKeys.get(key) ?? '');
     if (target) for (const p of target) spriteOf.set(p.position, s);
     else unmatched.push({ id: s.id, name: s.name, url: spriteUrl(s.id) });
     const sprite: Sprite = { id: s.id, url: spriteUrl(s.id), cols: COLS, rows: ROWS, frame: FRAME };

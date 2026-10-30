@@ -187,9 +187,14 @@ Every person of the wall has a walking sprite. Use them.
 People of the wall make a pixel character in 30 seconds at Sprite Party (event "PEOPLE OF THE WALL"), typing their
 name as painted on the wall. The way in is token-gated: the hub's PEOPLE section (`hub/people-gate.ts`) shows ADD
 YOURSELF only to a player signed in with Connect whose wallet holds a name of the wall, and the games' band and end link
-only to such a holder; the capture link is in no page, the card service hands it to a holder
-(`GET /people/capture?wallet=`). A sprite whose name matches no name of the wall stays out of people.json. The card
-service mirrors each sheet and matches it to its panel (`cards/src/people.ts`, `cards/people/aliases.json` for the rest):
+only to such a holder. The capture link is in no page: at the click, the page sends its Connect session to the card
+service (`POST /people/capture { accessToken }`, checked with SuperRare as for `/api/submit`), which answers
+`https://www.spriteparty.com/p/sp_Fr4EW5t7XNjm0E_q/capture#handoff=<JWT>` for the wallet's first name without a character;
+the token lives 2 minutes (just to open the link; the capture then lasts an hour), a new click makes a new one. A sprite
+made through that link carries `ref`, `recipientWallet` and `partnerIssuer`: with our issuer, it belongs to panel `ref` if
+that wallet holds it, else to no panel. Any other sprite belongs to the panel whose name matches its Player name; one that
+matches none stays out of people.json. The card service mirrors each sheet and matches it to its panel
+(`cards/src/people.ts`, `cards/people/aliases.json` for the rest):
 
 - `GET https://wall-arcade-cards.netlify.app/people.json` (public, no key, CORS *, refreshed every 5 minutes): one object
   per name painted on the wall, `{ panel, name, handle, wallet?, sprite: { id, url, cols: 4, rows: 4, frame: 48 } | null, updatedAt }`.
@@ -199,10 +204,12 @@ service mirrors each sheet and matches it to its panel (`cards/src/people.ts`, `
   (panel null). The hub counts them as "N characters · M on the wall". Display only: matching, aliases and the games
   still go by people.json.
 - `GET https://wall-arcade-cards.netlify.app/.well-known/jwks.json` (public, CORS *, cached 5 minutes): the RS256 key
-  (kid `potw-2026-10`) Sprite Party checks our signed capture links with. `signCaptureLink({ address, name, panel })`
-  (`cards/src/capture-link.ts`) issues the JWT: iss `https://wall-arcade-cards.netlify.app`, iat, exp 15 minutes. The
-  private key is only the Netlify secret `SPRITE_JWT_PRIVATE_KEY` (production, functions); the JWKS is derived from it.
-  Claim names and the link's format are provisional until Sprite Party's guide.
+  (kid `potw-2026-10`) Sprite Party checks our capture tokens with. `signCaptureToken({ wallet, panel, name })`
+  (`cards/src/capture-link.ts`) issues them in Sprite Party's partner-capture format: header `{ alg: RS256, typ: JWT,
+  kid: potw-2026-10 }`; claims `iss` `https://wall-arcade-cards.netlify.app`, `aud` `spriteparty-partner-capture`, `party`
+  `sp_Fr4EW5t7XNjm0E_q`, `recipient_wallet` and `sub` (the address, lowercase), `ref` (the panel, a string), `name` (as
+  painted), `iat`, `exp` (iat + 120), `jti` (a random UUID). The private key is only the Netlify secret
+  `SPRITE_JWT_PRIVATE_KEY` (production, functions); the JWKS is derived from it.
 - A sheet is a PNG of 192 × 192, transparent, 4 × 4 frames of 48 px: row = direction (0 up, 1 right, 2 down, facing
   you, 3 left), column = step (4 steps, 130 ms each). `/people/sprites.zip` holds them all.
 - In the games (`src/shell/people.ts`, `src/share/sprite.ts`, display only): FULL ROW's ROW PAINTED shows the row's

@@ -23,7 +23,7 @@ import { Practice } from './practice.js';
 import { copyText, diag } from './diagnostics.js';
 import { lisbonWeek, WEEK_LABEL, weekEnds } from './week.js';
 import { CARD_SERVICE, wirePostLink } from '../share/post.js';
-import { captureFor, knownCapture, loadPeople, missingCharacter } from './people.js';
+import { loadPeople, missingCharacter, openCapture } from './people.js';
 import { beacon, setBeaconContext } from '../share/beacon.js';
 
 function requiredElement<ElementType extends HTMLElement>(selector: string): ElementType {
@@ -343,11 +343,11 @@ export async function startApp(adapter: GameAdapter): Promise<void> {
       actionButton(again, () => { beacon(again === 'Buy credits' ? 'buy_click' : 'play_again', again === 'Buy credits' ? { extra: { from: 'end' } } : {}); void play(again === 'Buy credits'); }, stage.endStats ? 'ink' : 'play');
       copyLogButton();                                 // "get on the wall" is the end screen's own small link, under the card
     }
-    // a holder of a name with no character yet (people.json): one small link under PLAY AGAIN
-    const capture = knownCapture(address());
-    if (capture && missingCharacter(address())) {
+    // a holder of a name with no character yet (people.json): one small link under PLAY AGAIN, signed at the click
+    if (authenticated && missingCharacter(address())) {
       const make = node('a', 'Make your character →', 'make-character');
-      make.href = capture; make.target = '_blank'; make.rel = 'noopener';
+      make.href = '#';
+      make.addEventListener('click', (event) => { event.preventDefault(); void makeCharacter(make); });
       ui.links.append(make);
     }
   }
@@ -531,18 +531,25 @@ export async function startApp(adapter: GameAdapter): Promise<void> {
     peopleFor = wallet;
     void loadPeople().then(async () => {
       const name = address() === wallet ? missingCharacter(wallet) : null;
-      const link = name ? await captureFor(wallet) : null;          // the link only ever comes for a holder
       if (address() !== wallet) return;
-      const show = Boolean(name && link);
-      if (name && link) {
-        requiredElement('#people-band-name').textContent = name;
-        requiredElement<HTMLAnchorElement>('#people-band-link').href = link;
-      }
+      const show = Boolean(name);                                    // the link itself is signed at the click (makeCharacter)
+      if (name) requiredElement('#people-band-name').textContent = name;
       requiredElement('#people-band').hidden = !show;
       document.body.classList.toggle('has-band', show);
       if (mode === 'end' || mode === 'practice-end') endActions();
     });
   }
+  /** Sprite Party's capture, opened in the instant of the click with a freshly signed link; a failure says so in place. */
+  async function makeCharacter(link: HTMLAnchorElement): Promise<void> {
+    const label = link.textContent;
+    const error = await openCapture(() => client.auth.getAccessToken());
+    if (!error) return;
+    link.textContent = error;
+    setTimeout(() => { link.textContent = label; }, 4000);
+  }
+  requiredElement<HTMLAnchorElement>('#people-band-link').addEventListener('click', (event) => {
+    event.preventDefault(); void makeCharacter(event.currentTarget as HTMLAnchorElement);
+  });
   function renderAuth(): void {
     renderPeopleBand();
     const current = session();

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { unzipSync, strFromU8 } from 'fflate';
 import { MANIFEST_URL, POSITIONS_URL, keyOf, type Character, type Person } from '../src/people.js';
-import { handlePeople, refresh, type PeopleDeps, type PeopleStore } from '../src/people-service.js';
+import { handlePeople, refresh, type CaptureDeps, type PeopleDeps, type PeopleStore } from '../src/people-service.js';
+import { jwks, signCaptureToken, verifyCaptureToken } from '../src/capture-link.js';
+import { generateKeyPairSync } from 'node:crypto';
 
 const JOHN = 'ffb3674b-17cb-48d9-a89d-840c48ad39b6', GHOST = '0b5a6f1e-0000-4000-8000-000000000001', MONO = '0b5a6f1e-0000-4000-8000-000000000002';
 /** The first bytes of a PNG of w × h (the service checks the signature and the IHDR). */
@@ -101,14 +103,76 @@ test('the sprite sheets are mirrored once, served with CORS; a sheet of the wron
   assert.equal((await get('/people/nope')).status, 404);
 });
 
-test('the capture link goes to a wallet that holds a name of the wall, and to no one else', async () => {
-  const karp = await get('/people/capture?wallet=0xAAAA000000000000000000000000000000000342');
-  assert.equal(karp.status, 200);
-  assert.equal(karp.headers.get('access-control-allow-origin'), '*');
-  assert.deepEqual(await karp.json(), { url: 'https://www.spriteparty.com/p/sp_Fr4EW5t7XNjm0E_q/capture', names: [{ name: 'KARP', panel: 342, character: true }] });
-  const stranger = await get('/people/capture?wallet=0xbbbb000000000000000000000000000000000001');
+const { privateKey: KEY } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const PEM = KEY.export({ type: 'pkcs8', format: 'pem' }).toString();
+const SESSIONS: Record<string, string> = { 'session-karp': '0xaaaa000000000000000000000000000000000342', 'session-stranger': '0xbbbb000000000000000000000000000000000001' };
+const HUB = 'https://6972mvu4.srstudio.dev';
+const capture: CaptureDeps = {
+  walletOf: async (token) => (typeof token === 'string' ? SESSIONS[token] ?? null : null),
+  sign: (subject) => signCaptureToken(subject, { privateKey: PEM }),
+  allowed: async (origin) => origin === HUB || origin === 'https://yfq52eu3.srstudio.dev',
+};
+const post = async (body: unknown, origin = HUB, method = 'POST'): Promise<Response> =>
+  handlePeople(new Request('https://wall-arcade-cards.netlify.app/people/capture', { method, headers: { Origin: origin, 'Content-Type': 'application/json' }, ...(method === 'POST' ? { body: JSON.stringify(body) } : {}) }), { ...deps, capture });
+
+test('POST /people/capture: a holder signed in gets the link, its token in the fragment, for the panel and name it holds', async () => {
+  const r = await post({ accessToken: 'session-karp' });
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('access-control-allow-origin'), HUB);
+  assert.equal(r.headers.get('cache-control'), 'no-store');
+  const body = await r.json() as { url: string; name: string; panel: number; expiresAt: string };
+  assert.equal(body.name, 'KARP'); assert.equal(body.panel, 342);
+  const [page, fragment] = body.url.split('#');
+  assert.equal(page, 'https://www.spriteparty.com/p/sp_Fr4EW5t7XNjm0E_q/capture');
+  assert.match(fragment!, /^handoff=[\w-]+\.[\w-]+\.[\w-]+$/);
+  const claims = verifyCaptureToken(fragment!.slice('handoff='.length), jwks(PEM));
+  assert.equal(claims.sub, '0xaaaa000000000000000000000000000000000342');
+  assert.equal(claims.recipient_wallet, claims.sub);
+  assert.equal(claims.ref, '342'); assert.equal(claims.name, 'KARP');
+  assert.equal(Date.parse(body.expiresAt) / 1000, claims.exp);
+  const again = await (await post({ accessToken: 'session-karp' })).json() as { url: string };
+  assert.notEqual(again.url, body.url, 'a new click, a new token');
+});
+
+test('POST /people/capture: an invalid session gets 401 and no link; a wallet without a name 404; no ?wallet= any more', async () => {
+  for (const token of ['session-expired', '', undefined, 42]) {
+    const r = await post({ accessToken: token });
+    assert.equal(r.status, 401);
+    assert.ok(!(await r.text()).includes('spriteparty'));
+  }
+  const stranger = await post({ accessToken: 'session-stranger' });
   assert.equal(stranger.status, 404);
-  assert.ok(!(await stranger.text()).includes('spriteparty'), 'no link for a wallet without a name');
-  assert.equal((await get('/people/capture?wallet=KARP')).status, 400);
-  assert.equal((await get('/people/capture')).status, 400);
+  assert.ok(!(await stranger.text()).includes('spriteparty'));
+  const byWallet = await get('/people/capture?wallet=0xAAAA000000000000000000000000000000000342');
+  assert.equal(byWallet.status, 405);
+  assert.ok(!(await byWallet.text()).includes('handoff'));
+  assert.equal((await post({ accessToken: 'session-karp' }, 'https://evil.example')).status, 403);
+  const preflight = await post(null, HUB, 'OPTIONS');
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-methods'), 'POST');
+});
+
+test('a sprite made through our link belongs to its ref, if the wallet holds that panel; refused otherwise', async () => {
+  const ours = { partnerIssuer: 'https://wall-arcade-cards.netlify.app' };
+  const viaLink = '0b5a6f1e-0000-4000-8000-000000000010', stolen = '0b5a6f1e-0000-4000-8000-000000000011', foreign = '0b5a6f1e-0000-4000-8000-000000000012';
+  const saved = sprites;
+  sprites = [
+    // a Player name that matches nothing: the ref decides (MONOKAI, panel 1, held by ...0001)
+    { id: viaLink, name: 'mono the great', src: `/api/assets?key=${viaLink}`, cols: 4, rows: 4, ref: '1', recipientWallet: '0xAAAA000000000000000000000000000000000001', ...ours } as never,
+    // a ref whose wallet does not hold the panel: refused, even though its name would match KARP
+    { id: stolen, name: 'KARP', src: `/api/assets?key=${stolen}`, cols: 4, rows: 4, ref: '342', recipientWallet: '0xbbbb000000000000000000000000000000000001', ...ours } as never,
+    // another issuer: the usual rule (name ALPHALABS.XYZ), its ref ignored
+    { id: foreign, name: 'alphalabs.xyz', src: `/api/assets?key=${foreign}`, cols: 4, rows: 4, ref: '342', recipientWallet: '0xbbbb000000000000000000000000000000000001', partnerIssuer: 'https://elsewhere.example' } as never,
+  ];
+  try {
+    const own = memory();
+    await refresh({ ...deps, store: own });
+    const people = JSON.parse((await own.getText('people.json'))!) as Person[];
+    assert.equal(people.find((p) => p.panel === 1)?.sprite?.id, viaLink, 'attached by ref');
+    assert.equal(people.find((p) => p.panel === 342)?.sprite, null, 'the stolen ref attached nowhere');
+    assert.equal(people.find((p) => p.panel === 2)?.sprite?.id, foreign, 'no partnerIssuer of ours: the name rule');
+    const all = JSON.parse((await own.getText('all.json'))!) as Character[];
+    assert.deepEqual(all.find((c) => c.sprite.id === stolen), { name: 'KARP', panel: null, guest: true, partyName: 'KARP', sprite: { id: stolen, url: `https://wall-arcade-cards.netlify.app/people/sprites/${stolen}.png`, cols: 4, rows: 4, frame: 48 } });
+    assert.equal(all.find((c) => c.sprite.id === viaLink)?.name, 'MONOKAI');
+  } finally { sprites = saved; }
 });
