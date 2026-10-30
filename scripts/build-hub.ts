@@ -117,8 +117,11 @@ const output = resolve(values.output);
 let exists = false;
 try { await access(output); exists = true; } catch { /* new output expected */ }
 if (exists && !values.force) throw new Error(`Output exists: ${output}. Use another path or --force.`);
-const archive = zipSync({ 'index.html': strToU8(page), 'builders.html': strToU8(builders), 'assets.html': strToU8(kitPage),
-  'submit.html': strToU8(submitPage), 'submit-page.js': submitJs, 'admin.html': strToU8(adminPage), 'admin-page.js': adminJs,
+// the host serves scripts as immutable for a year: a page asks for its script by content, so a change reaches a browser that already has one
+const byContent = (js: Uint8Array): string => `?v=${createHash('sha256').update(js).digest('hex').slice(0, 12)}`;
+const archive = zipSync({ 'index.html': strToU8(page.replace("s.src = 'people-gate.js'", () => `s.src = 'people-gate.js${byContent(gateJs)}'`)), 'builders.html': strToU8(builders), 'assets.html': strToU8(kitPage),
+  'submit.html': strToU8(submitPage.replace('src="./submit-page.js"', () => `src="./submit-page.js${byContent(submitJs)}"`)), 'submit-page.js': submitJs,
+  'admin.html': strToU8(adminPage.replace('src="./admin-page.js"', () => `src="./admin-page.js${byContent(adminJs)}"`)), 'admin-page.js': adminJs,
   'kit/wall.json': strToU8(JSON.stringify(wallItems, null, 1)), 'people-gate.js': gateJs, ...assets }, { level: 9 });
 await mkdir(dirname(output), { recursive: true });
 const temporary = `${output}.${process.pid}.tmp`;
