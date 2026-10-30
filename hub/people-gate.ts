@@ -27,11 +27,16 @@ async function nameOf(wallet: string): Promise<Person | null> {
   return mine.find((p) => !p.sprite) ?? mine[0] ?? null;
 }
 
-/** Shows the section for whoever is signed in: a holder gets their name, the button and the instruction. */
+let shownFor: string | undefined | null = null;              // the wallet the section shows (undefined: signed out; null: to check)
+let signingIn = false;                                       // SIGN IN is running: its line stays until the session arrives
+
+/** Shows the section for whoever is signed in, once per wallet: a holder gets their name, the button and the instruction. */
 async function render(): Promise<void> {
   const wallet = client.auth.getSession()?.address.toLowerCase();
+  if (wallet === shownFor) return;
+  shownFor = wallet;
   inside.hidden = true; out.hidden = false;
-  if (!wallet) { status.textContent = ''; return; }
+  if (!wallet) { if (!signingIn) status.textContent = ''; return; }
   status.textContent = 'Checking your wallet…';
   try {
     const person = await nameOf(wallet);
@@ -41,6 +46,7 @@ async function render(): Promise<void> {
     hint.textContent = `Your character goes on ${person.name}. If Sprite Party asks for a Player name, type ${person.name}.`;
     out.hidden = true; inside.hidden = false; status.textContent = '';
   } catch {
+    if (shownFor === wallet) shownFor = null;                // the next return to the page tries again
     status.textContent = 'Your wallet could not be checked. Try again in a minute.';
   }
 }
@@ -75,17 +81,25 @@ new IntersectionObserver((entries, observer) => {
 }).observe($('people'));
 
 signIn.addEventListener('click', async () => {
-  signIn.disabled = true;
+  signIn.disabled = true; signingIn = true;
   status.textContent = 'SuperRare Connect is open in a popup.';
+  // login() ends after the session is saved (it still fetches the profile, up to 20 s, and a phone may hold it in the
+  // background): the section follows the session itself
+  const watch = setInterval(() => void render(), 500);
   try {
     if (client.auth.getSession()) await client.auth.logout().catch(() => client.auth.clearSession());   // another wallet
     const result = await client.auth.login();
-    if (result.status !== 'authenticated') status.textContent = `Sign-in ${result.status}.`;
-    await render();
+    if (result.status !== 'authenticated' && !client.auth.getSession()) status.textContent = `Sign-in ${result.status}.`;
   } catch (error) {
-    status.textContent = error instanceof ConnectPopupBlockedError ? 'Allow pop-ups for this page, then press SIGN IN again.' : 'Sign-in failed. Try again.';
+    if (!client.auth.getSession()) status.textContent = error instanceof ConnectPopupBlockedError ? 'Allow pop-ups for this page, then press SIGN IN again.' : 'Sign-in failed. Try again.';
   } finally {
-    signIn.disabled = false;
+    clearInterval(watch);
+    signingIn = false; signIn.disabled = false;
+    await render();
   }
 });
+
+// a sign-in that ended while this page was away (the popup, another tab, a phone's app switch): the session is read again on return
+for (const type of ['focus', 'pageshow', 'storage']) window.addEventListener(type, () => void render());
+document.addEventListener('visibilitychange', () => { if (!document.hidden) void render(); });
 void render();
