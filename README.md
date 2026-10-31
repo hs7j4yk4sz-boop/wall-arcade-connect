@@ -141,6 +141,12 @@ muted H.264, its poster. Both go to the card service's store (`clips/<slug>.mp4`
 a hand-made clip of the hub (`hub/clips/<slug>.mp4`) if there is one, before the capture. If the clip fails, nothing
 changes: the still capture stays (five minutes at most per game). USE THE STILL on the admin page sets a clip aside.
 
+**Every night, without the Mac:** `.github/workflows/clips.yml` runs `npm run clips:night` at 02:30 UTC: every live game
+with no clip (a hand-made clip counts, USE THE STILL is left alone), one after the other, Chrome in software rendering,
+ten minutes at most each. No secret: the clip goes to `POST /api/clip` with the workflow's OIDC token, which the service
+checks against GitHub's keys (`cards/src/clip-upload.ts`: this repository, main, this workflow). A failed clip changes
+nothing, the still stays, and the next night tries again.
+
 John plays it at its address, then opens `admin.html` on the hub (linked from no page; the card service answers only to
 a wallet of its `ADMIN_WALLET` variable, comma-separated): PUT IT ON THE HUB (last column, NEW), HIDE, ↑ ↓ for the order
 of the columns, EDIT, ATTACH again if the group refused it, a new capture. ADD A GAME, for a game sent by DM: the name on

@@ -12,6 +12,7 @@
     "build": "tsx scripts/build.ts",
     "build:hub": "tsx scripts/build-hub.ts",
     "clip": "tsx scripts/clip-game.ts",
+    "clips:night": "tsx scripts/clips-night.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts"
   },

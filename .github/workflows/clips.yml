@@ -1,0 +1,46 @@
+# Every night, a 10 s clip for each live game that has none (scripts/clips-night.ts): no Mac, no secret. Chrome renders in
+# software, ten minutes at most per game; the clip goes to the card service with this workflow's OIDC token, and a game
+# whose clip fails keeps its still. By hand: Actions > Clips > Run workflow, a slug to film that game, clip or not.
+name: Clips
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: 'One game (empty: every live game with no clip)'
+        required: false
+      dry:
+        description: 'Film and cut, send nothing'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  id-token: write
+concurrency: clips
+jobs:
+  clips:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: npm ci
+      - name: Film
+        run: npm run clips:night -- "$SLUG"
+        env:
+          SLUG: ${{ inputs.slug }}
+          CLIP_DRY: ${{ inputs.dry && '1' || '' }}
+          CHROME_PATH: /usr/bin/google-chrome
+          FFMPEG_PATH: /usr/bin/ffmpeg
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clips
+          path: dist/clips/*.mp4
+          if-no-files-found: ignore
+          retention-days: 7
