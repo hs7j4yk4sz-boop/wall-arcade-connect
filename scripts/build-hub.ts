@@ -20,6 +20,7 @@ const buildersSource = await readFile(new URL('../hub/builders.html', import.met
 const assetsSource = await readFile(new URL('../hub/assets.html', import.meta.url), 'utf8');
 const submitPage = await readFile(new URL('../hub/submit.html', import.meta.url), 'utf8');     // SUBMIT YOUR GAME (hub/submit-page.ts)
 const adminPage = await readFile(new URL('../hub/admin.html', import.meta.url), 'utf8');       // linked from no page (hub/admin-page.ts)
+const earningsPage = await readFile(new URL('../hub/earnings.html', import.meta.url), 'utf8'); // the week so far (the card service's /earnings.json)
 const walkExample = await readFile(new URL('../hub/kit/walk-a-sprite.html', import.meta.url), 'utf8');
 const kitDoc = await readFile(new URL('../docs/CONNECT-KIT.md', import.meta.url), 'utf8');
 const kitBlock = /```text\n([\s\S]*?)\n```/.exec(kitDoc);
@@ -103,6 +104,7 @@ if (!submitPage.includes('src="./submit-page.js"') || !adminPage.includes('src="
 if (!adminPage.includes('noindex')) throw new Error('hub/admin.html stays out of search engines');
 if (!adminPage.includes('id="addForm"')) throw new Error('hub/admin.html has ADD A GAME');
 if (!adminPage.includes('id="jackpotBox"')) throw new Error('hub/admin.html has JACKPOT');
+for (const [name, source] of [['hub/src.html', page], ['hub/builders.html', builders]] as const) if (!source.includes('href="./earnings.html"')) throw new Error(`${name} must link to ./earnings.html`);
 if (/spriteparty\.com\/p\/[^/"]+\/capture/.test(new TextDecoder().decode(gateJs))) throw new Error('people-gate.js must not hold the capture link');
 // THE WALL KIT: the example's very text under its live demo, the snapshot's date; linked from the hub and the builders page
 for (const marker of ['/*WALK*/', '/*BUILT*/']) if (!assetsSource.includes(marker)) throw new Error(`hub/assets.html must hold ${marker}`);
@@ -110,8 +112,8 @@ const escapeHtml = (s: string): string => s.replace(/[&<>]/g, (c) => ({ '&': '&a
 const kitPage = assetsSource.replace('/*WALK*/', () => escapeHtml(walkExample.trimEnd()))
   .replace('/*BUILT*/', () => new Date().toISOString().slice(0, 10));
 if (!kitPage.includes('href="./"')) throw new Error('hub/assets.html must link back to ./');
-for (const source of [page, builders, kitPage, submitPage]) if (source.includes('admin.html')) throw new Error('no page links to admin.html');
-for (const [name, source] of [['hub/src.html', page], ['hub/builders.html', builders], ['hub/assets.html', kitPage], ['hub/submit.html', submitPage]] as const) if (!source.includes('<script src="./tag.js" data-view=')) throw new Error(`${name} must load ./tag.js`);
+for (const source of [page, builders, kitPage, submitPage, earningsPage]) if (source.includes('admin.html')) throw new Error('no page links to admin.html');
+for (const [name, source] of [['hub/src.html', page], ['hub/builders.html', builders], ['hub/assets.html', kitPage], ['hub/submit.html', submitPage], ['hub/earnings.html', earningsPage]] as const) if (!source.includes('<script src="./tag.js" data-view=')) throw new Error(`${name} must load ./tag.js`);
 for (const [name, source] of [['hub/src.html', page], ['hub/builders.html', builders]] as const) if (!source.includes('href="./assets.html"')) throw new Error(`${name} must link to ./assets.html`);
 
 const output = resolve(values.output);
@@ -122,10 +124,10 @@ if (exists && !values.force) throw new Error(`Output exists: ${output}. Use anot
 const byContent = (js: Uint8Array): string => `?v=${createHash('sha256').update(js).digest('hex').slice(0, 12)}`;
 const archive = zipSync({ 'index.html': strToU8(page.replace("s.src = 'people-gate.js'", () => `s.src = 'people-gate.js${byContent(gateJs)}'`)), 'builders.html': strToU8(builders), 'assets.html': strToU8(kitPage),
   'submit.html': strToU8(submitPage.replace('src="./submit-page.js"', () => `src="./submit-page.js${byContent(submitJs)}"`)), 'submit-page.js': submitJs,
-  'admin.html': strToU8(adminPage.replace('src="./admin-page.js"', () => `src="./admin-page.js${byContent(adminJs)}"`)), 'admin-page.js': adminJs,
+  'earnings.html': strToU8(earningsPage), 'admin.html': strToU8(adminPage.replace('src="./admin-page.js"', () => `src="./admin-page.js${byContent(adminJs)}"`)), 'admin-page.js': adminJs,
   'kit/wall.json': strToU8(JSON.stringify(wallItems, null, 1)), 'people-gate.js': gateJs, ...assets }, { level: 9 });
 await mkdir(dirname(output), { recursive: true });
 const temporary = `${output}.${process.pid}.tmp`;
 try { await writeFile(temporary, archive, { flag: 'wx' }); await rename(temporary, output); } finally { await rm(temporary, { force: true }); }
 const minted = rows.filter(Boolean).length;
-process.stdout.write(`Hub archive: ${output}\nFiles: index.html, builders.html, assets.html, submit.html, submit-page.js (${submitJs.byteLength} bytes), admin.html, admin-page.js (${adminJs.byteLength} bytes), kit/wall.json, people-gate.js (${gateJs.byteLength} bytes), ${Object.keys(assets).join(', ')}\nBricks: ${rows.length} (${minted} minted)\nGames on the hub: ${live.map((g) => g.title).join(', ')} (clips: ${CLIPS.join(', ')})\nSHA-256: ${createHash('sha256').update(archive).digest('hex')}\nSize: ${archive.byteLength} bytes\n`);
+process.stdout.write(`Hub archive: ${output}\nFiles: index.html, builders.html, assets.html, earnings.html, submit.html, submit-page.js (${submitJs.byteLength} bytes), admin.html, admin-page.js (${adminJs.byteLength} bytes), kit/wall.json, people-gate.js (${gateJs.byteLength} bytes), ${Object.keys(assets).join(', ')}\nBricks: ${rows.length} (${minted} minted)\nGames on the hub: ${live.map((g) => g.title).join(', ')} (clips: ${CLIPS.join(', ')})\nSHA-256: ${createHash('sha256').update(archive).digest('hex')}\nSize: ${archive.byteLength} bytes\n`);

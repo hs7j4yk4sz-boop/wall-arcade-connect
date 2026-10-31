@@ -159,6 +159,11 @@ hash is recorded at once, so a send on its way cannot be doubled, and the servic
 chain: a mined transaction from the treasury to Disperse with exactly the week's lines plus the wall's. The admin wallets
 are `ADMINS` in `cards/src/submit-netlify.ts` (johnkarp.eth and the treasury), and `ADMIN_WALLET` adds others.
 
+**Earnings, in public:** `earnings.html` on the hub, linked from the JACKPOT band and the builders page, reads
+`/earnings.json` on the card service: the week so far, by game, the credits played, the artist's share and the best
+score's share if the week ended now. The same calculation as PAY (`cards/src/jackpot.ts`), read again every 15 minutes;
+names and amounts, no wallet.
+
 John plays it at its address, then opens `admin.html` on the hub (linked from no page; the card service answers only to
 a wallet of its `ADMIN_WALLET` variable, comma-separated): PUT IT ON THE HUB (last column, NEW), HIDE, ↑ ↓ for the order
 of the columns, EDIT, ATTACH again if the group refused it, a new capture. ADD A GAME, for a game sent by DM: the name on

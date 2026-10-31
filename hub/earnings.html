@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE WALL ARCADE — earnings</title>
+<meta name="description" content="This week on THE WALL ARCADE, game by game: credits played, the artist's share and the best score's share if the week ended now.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@500&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+<style>
+/* EARNINGS: the week so far, game by game, from the card service's /earnings.json (cards/src/jackpot.ts: the calculation the
+   Friday payment uses, read again every 15 minutes). The builders page's look (concrete / ink / chalk, one blue). Public. */
+:root{--concrete:#DEDBD3;--ink:#0B0B0B;--chalk:#F2F0EB;--label:#6B685F;--rule:#C4C0B6;--blue:#2E7FD6;--red:#B3261E;
+  --anton:Anton,Impact,'Arial Narrow',sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--inter:Inter,system-ui,sans-serif;--padx:max(16px,5%)}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--concrete);color:var(--ink)}
+body{font-family:var(--inter);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+p,h1,h2{margin:0}
+a{color:inherit}
+[hidden]{display:none !important}
+.lbl{font:500 13px/1.3 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--label)}
+.anton{font-family:var(--anton);font-weight:400;text-transform:uppercase;line-height:.9;letter-spacing:-.005em}
+main{max-width:1100px;margin:0 auto;padding:clamp(24px,4vw,56px) var(--padx) 56px}
+.back{font:500 13px/1.3 var(--mono);text-decoration:none}
+h1{font-size:clamp(52px,9vw,120px);margin-top:20px}
+.total{margin-top:20px;font:400 clamp(36px,5vw,64px)/1 var(--anton);color:var(--blue)}
+.rule{margin-top:14px;max-width:60ch;font:300 clamp(16px,1.5vw,19px)/1.5 var(--inter)}
+.when{margin-top:12px}
+.list{margin-top:32px;border-top:1px solid var(--ink)}
+.row{display:grid;grid-template-columns:minmax(0,2fr) 90px minmax(0,2fr) minmax(0,2fr);gap:16px;align-items:baseline;padding:16px 0;border-bottom:1px solid var(--rule)}
+.row.head{padding:10px 0;border-bottom:1px solid var(--ink)}
+.title{font:400 clamp(22px,2.4vw,30px)/1 var(--anton);text-transform:uppercase;overflow-wrap:anywhere}
+.num{font:500 16px/1.3 var(--mono)}
+.who{font:400 15px/1.4 var(--inter);overflow-wrap:anywhere}
+.tag{display:none}
+.message{margin-top:32px;font:400 16px/1.5 var(--inter);color:var(--label)}
+footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 24px;padding:24px var(--padx) 32px;font:400 13px/1.5 var(--inter);color:var(--label)}
+footer a{color:var(--label)}
+@media (max-width:760px){
+  .row{grid-template-columns:1fr 1fr;gap:10px 16px}
+  .row.head{display:none}
+  .title{grid-column:1 / -1}
+  .credits{grid-column:1 / -1}
+  .tag{display:block;margin-bottom:4px;font:500 11px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--label)}
+}
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">← THE WALL ARCADE</a>
+  <p class="lbl" id="week" style="margin-top:28px">This week</p>
+  <h1 class="anton">Earnings</h1>
+  <p class="total" id="total" aria-live="polite">— ETH</p>
+  <p class="rule">If the week ended now. Each credit played is worth 0.0001 ETH: 50% to the game's best score, 40% to its artist, 10% to the wall. Paid every Friday at 15:00 Lisbon.</p>
+  <p class="lbl when" id="when"></p>
+  <p class="message" id="message" aria-live="polite">Reading the week…</p>
+  <div class="list" id="list" hidden>
+    <div class="row head lbl"><span>Game</span><span>Credits</span><span>Artist's share</span><span>Best score's share</span></div>
+    <div id="rows"></div>
+  </div>
+</main>
+<footer><span>THE WALL ARCADE · Updated every 15 minutes</span><a href="./builders.html">Make a game</a></footer>
+<script>
+/* ---- the week from the card service; nothing here is written by hand, and nothing is drawn as HTML ---- */
+var $ = function (id) { return document.getElementById(id); };
+function node(cls, text, tag) {
+  var n = document.createElement('div'); n.className = cls; n.textContent = text;
+  return n;
+}
+function share(label, name, eth) {
+  var box = document.createElement('div'), tag = node('tag', label);
+  box.append(tag, node('num', eth + ' ETH'), node('who', name));
+  return box;
+}
+function lisbon(t) { return new Date(t).toLocaleString('en-GB', { timeZone: 'Europe/Lisbon', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+function draw(d) {
+  $('week').textContent = 'Week ' + d.week.n + ' · ends ' + lisbon(d.week.to) + ' Lisbon';
+  $('total').textContent = d.totalEth + ' ETH';
+  $('when').textContent = d.credits + ' credits played · updated ' + lisbon(d.updatedAt);
+  $('rows').replaceChildren.apply($('rows'), d.games.map(function (g) {
+    var row = document.createElement('div'), credits = document.createElement('div');
+    row.className = 'row';
+    credits.className = 'credits'; credits.append(node('tag', 'Credits'), node('num', String(g.credits)));
+    row.append(node('title', g.title), credits, share("Artist's share", g.toWall ? 'To the wall' : g.artist, g.artistEth),
+      share("Best score's share", g.bestName ? g.bestName + ' · ' + g.bestScore.toLocaleString('en-US') : 'No score yet', g.bestEth));
+    return row;
+  }));
+  $('message').hidden = true; $('list').hidden = false;
+}
+function load() {
+  fetch('https://wall-arcade-cards.netlify.app/earnings.json').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(draw).catch(function () {
+    if ($('list').hidden) $('message').textContent = 'The week cannot be read right now. Try again in a minute.';
+  });
+}
+load(); setInterval(load, 60000);
+</script>
+<script src="./tag.js" data-view="earnings_view"></script>
+</body>
+</html>

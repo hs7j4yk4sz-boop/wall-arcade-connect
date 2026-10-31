@@ -18,7 +18,7 @@ const list = asked ? games.filter((g) => g.slug === asked) : missing(games, (slu
 const lines = [`${list.length} game(s) to film${list.length ? `: ${list.map((g) => g.slug).join(', ')}` : ''}`];
 for (const game of list) {
   const run = spawnSync('npx', ['tsx', 'scripts/clip-game.ts', game.slug], { cwd: ROOT, stdio: 'inherit', timeout: (MINUTES + 1) * 60_000, killSignal: 'SIGKILL', env: { ...process.env, CLIP_SOFTWARE: '1', CLIP_MINUTES: String(MINUTES) } });
-  lines.push(`${game.slug}: ${run.status === 0 ? 'clip sent' : 'no clip, its still stays'}`);
+  lines.push(`${game.slug}: ${run.status !== 0 ? 'no clip, its still stays' : process.env.CLIP_DRY ? 'cut, nothing sent' : 'clip sent'}`);
 }
 console.log(lines.join('\n'));
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n\n')}\n`);
