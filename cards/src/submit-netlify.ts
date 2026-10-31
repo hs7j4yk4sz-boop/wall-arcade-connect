@@ -1,12 +1,18 @@
 // SUBMIT YOUR GAME's dependencies on this site (cards/src/submit.ts): Netlify Blobs, SuperRare's SDK with RARE_PROFILE_TOKEN
 // (attach), the capture's background function, Resend for the mail to John (RESEND_API_KEY, NOTIFY_EMAIL; no mail without
-// them), ADMIN_WALLET (the admin page's wallets, comma-separated). All Netlify variables, none in the repository.
+// them), ADMIN_WALLET (more admin wallets, comma-separated, beside ADMINS). All Netlify variables, none in the repository.
 import { createProfileClient } from '@rareprotocol/rare-profile';
 import { GROUP_ID, SITE } from './games.js';
 import { gamesStore } from './games-store.js';
 import { peopleStore } from './people-store.js';
+import { adminJackpot } from './jackpot-service.js';
+import { jackpotDeps } from './jackpot-store.js';
+import { TREASURY } from './pot.js';
 import { statsStore } from './stats-store.js';
 import { mailOf, type SubmitDeps } from './submit.js';
+
+/** The admin page's wallets: johnkarp.eth and the treasury. */
+export const ADMINS = ['0x38f1dfdcaf2f0d70c29d4af6a4aa9e920efe8b18', TREASURY];
 
 export const submitDeps = (): SubmitDeps => ({
   fetch, now: () => Date.now(), games: gamesStore(), people: peopleStore(),
@@ -32,5 +38,6 @@ export const submitDeps = (): SubmitDeps => ({
         body: JSON.stringify({ from: process.env.MAIL_FROM || 'THE WALL ARCADE <onboarding@resend.dev>', to: [to], subject, html }), signal: AbortSignal.timeout(8000) });
     } catch { /* the admin page lists it anyway */ }
   },
-  admins: (process.env.ADMIN_WALLET ?? '').split(',').map((w) => w.trim().toLowerCase()).filter((w) => /^0x[0-9a-f]{40}$/.test(w)),
+  admins: [...ADMINS, ...(process.env.ADMIN_WALLET ?? '').split(',').map((w) => w.trim().toLowerCase()).filter((w) => /^0x[0-9a-f]{40}$/.test(w))],
+  jackpot: (body, admin) => adminJackpot(jackpotDeps(), body, admin),
 });

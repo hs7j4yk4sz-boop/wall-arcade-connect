@@ -11,7 +11,8 @@
 <style>
 /* The games of games.json by status, for John (a wallet of ADMIN_WALLET on the card service): PUT IT ON THE HUB, HIDE, the
    order of the columns, EDIT, ATTACH again, a new capture; ADD A GAME for one sent by DM (the name on the wall, its
-   address, its app ID: the same eight checks as SUBMIT YOUR GAME). Linked from no page. hub/admin-page.ts does the rest. */
+   address, its app ID: the same eight checks as SUBMIT YOUR GAME); JACKPOT, each closed week and PAY. Linked from no
+   page. hub/admin-page.ts and hub/admin-jackpot.ts do the rest. */
 :root{--concrete:#DEDBD3;--ink:#0B0B0B;--chalk:#F2F0EB;--label:#6B685F;--rule:#C4C0B6;--blue:#2E7FD6;--green:#1F7A3A;--red:#B3261E;
   --anton:Anton,Impact,'Arial Narrow',sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--inter:Inter,system-ui,sans-serif;--padx:max(16px,4%)}
 *{box-sizing:border-box}
@@ -26,7 +27,7 @@ a{color:inherit}
   font:400 17px/1 var(--anton);letter-spacing:.06em;text-transform:uppercase;background:var(--chalk);color:var(--ink)}
 .btn.blue{background:var(--blue);border-color:var(--blue)}
 .btn.ink{background:var(--ink);color:var(--chalk)}
-.btn:disabled{opacity:.5;cursor:wait}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 main{max-width:1100px;margin:0 auto;padding:clamp(24px,4vw,48px) var(--padx) 64px}
 h1{font-size:clamp(44px,7vw,84px);margin-top:12px}
 .bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:20px}
@@ -66,6 +67,26 @@ h2{font-size:clamp(28px,4vw,44px);margin-top:40px;border-top:1px solid var(--ink
 .checks .no .mark{color:var(--red)}
 .checks .wait{color:var(--label)}
 .checks .fix{grid-column:2;color:var(--red);overflow-wrap:anywhere}
+.jackpot{margin-top:24px;padding:16px;border:1px solid var(--ink);background:var(--chalk);display:flex;flex-direction:column;gap:12px}
+.jackpot h2{margin:0;border:0;padding:0;font-size:clamp(24px,3vw,32px)}
+.jackpot .seen{font:500 13px/1.4 var(--mono);overflow-wrap:anywhere}
+.jackpot .seen:empty{display:none}
+.week{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--ink);background:#fff}
+.week + .week{margin-top:12px}
+.week h3{font:400 28px/1 var(--anton);text-transform:uppercase}
+.week .meta{font:400 14px/1.5 var(--inter);overflow-wrap:anywhere}
+.week .warn{color:var(--red)}
+.week .why{color:var(--label)}
+.week .why:empty{display:none}
+.week .scroll{overflow-x:auto}
+.week table{border-collapse:collapse;width:100%;font:400 14px/1.4 var(--inter)}
+.week th{font:500 11px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--label);text-align:left;padding:6px 10px 6px 0;border-bottom:1px solid var(--ink)}
+.week td{padding:6px 10px 6px 0;border-bottom:1px solid var(--rule);white-space:nowrap}
+.week .lines{margin:0;padding:0;list-style:none;font:400 14px/1.6 var(--inter);overflow-wrap:anywhere}
+.week label{display:flex;flex-direction:column;gap:4px;font:500 11px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--label)}
+.week input{min-height:44px;padding:8px 10px;border:1px solid var(--ink);background:#fff;font:400 15px/1.2 var(--inter);border-radius:0;width:100%}
+.week .acts{display:flex;flex-wrap:wrap;gap:8px}
+.week .paste{display:grid;grid-template-columns:1fr auto;gap:8px}
 @media (max-width:640px){ .add form{grid-template-columns:1fr} .g{grid-template-columns:1fr} .g img,.g video,.g .noshot{width:100%;height:auto;aspect-ratio:1} .g form{grid-template-columns:1fr} }
 </style>
 </head>
@@ -90,6 +111,12 @@ h2{font-size:clamp(28px,4vw,44px);margin-top:40px;border-top:1px solid var(--ink
     </form>
     <p class="note" id="addNote" aria-live="polite"></p>
     <ul class="checks" id="addChecks" hidden aria-live="polite"></ul>
+  </div>
+  <div class="jackpot" id="jackpotBox" hidden>
+    <h2 class="anton">Jackpot</h2>
+    <div class="bar"><button class="btn" id="walletConnect" type="button">Connect wallet</button><p class="seen" id="walletSeen"></p></div>
+    <p class="note" id="jackpotNote" aria-live="polite"></p>
+    <div id="jackpotWeeks"></div>
   </div>
   <div id="board" hidden>
     <h2 class="anton">Pending</h2><div class="list" id="pending"></div>

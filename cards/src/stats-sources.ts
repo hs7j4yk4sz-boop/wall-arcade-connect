@@ -31,9 +31,9 @@ const titlesSeen = new Map<string, string>();                   // app id → it
 
 type Client = ReturnType<typeof createProfileClient>;
 /** One client per refresh: it trades the token for a session once, then reuses it. */
-const clientOf = (deps: StatsDeps): Client | null => (deps.token ? createProfileClient({ baseUrl: 'https://studio.superrare.com', token: deps.token, fetchImpl: deps.fetch }) : null);
+export const clientOf = (deps: Pick<StatsDeps, 'fetch' | 'token'>): Client | null => (deps.token ? createProfileClient({ baseUrl: 'https://studio.superrare.com', token: deps.token, fetchImpl: deps.fetch }) : null);
 
-async function usageOf(client: Client, from: number, to: number): Promise<Usage> {
+export async function usageOf(client: Client, from: number, to: number): Promise<Usage> {
   const r = await client.creditGroups.usage({ groupId: GROUP_ID, from: new Date(from).toISOString(), to: new Date(to).toISOString() });
   const n = (s: string): number => Number(s) || 0;
   const games: Usage['games'] = {};

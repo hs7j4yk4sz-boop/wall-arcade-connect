@@ -5,9 +5,9 @@
 //   POST /api/submit          an artist's game: who they are (their SuperRare Connect session, checked with SuperRare),
 //                             the eight checks below, each green or red with its remedy; all green: attached to the
 //                             credit group at 1 credit per play, recorded as pending, captured, John told by mail
-//   POST /api/admin           John (a wallet of ADMIN_WALLET, by its Connect session): ADD A GAME (sent by DM: the same
+//   POST /api/admin           John (ADMINS and ADMIN_WALLET, by its Connect session): ADD A GAME (sent by DM: the same
 //                             eight checks, the same attach), PUT IT ON THE HUB, HIDE, the order of the columns, EDIT,
-//                             ATTACH again, a new capture
+//                             ATTACH again, a new capture, the JACKPOT section (cards/src/jackpot-service.ts)
 // Who is who: the page sends its Connect access token (`accessToken`, the opaque session id the Connect SDK hands out);
 // SuperRare answers which wallet it belongs to (GET /v1/connect/session). It is used for that one question and never
 // kept. No signature, no transaction, no credit on either page.
@@ -31,6 +31,8 @@ export type SubmitDeps = {
   /** tells John (mail); never throws */
   notify(game: Game): Promise<void>;
   admins: string[];
+  /** the JACKPOT section's actions (cards/src/jackpot-service.ts) */
+  jackpot?(body: Record<string, unknown>, admin: string): Promise<{ status: number; body: unknown }>;
 };
 
 const cors = (origin: string | null): Record<string, string> =>
@@ -222,6 +224,7 @@ export async function handleAdmin(request: Request, deps: SubmitDeps): Promise<R
   const games = await readGames(deps.games);
   if (body.action === 'whoami') return json({ admin: true, wallet, games }, 200, h);
   if (body.action === 'add') { const r = await addGame(deps, body, wallet); return json(r.body, r.status, h); }
+  if (typeof body.action === 'string' && /^jackpot(-recompute|-paid|-clear)?$/.test(body.action) && deps.jackpot) { const r = await deps.jackpot(body, wallet); return json(r.body, r.status, h); }
   const appId = typeof body.appId === 'string' ? body.appId : '';
   if (body.action === 'attach' || body.action === 'shoot') {
     const game = games.find((g) => g.appId === appId);

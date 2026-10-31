@@ -1,0 +1,157 @@
+// The jackpot on the card service: the sources of cards/src/jackpot.ts, and what is kept of each week (store "jackpot").
+//   every 15 minutes (netlify/functions/jackpot-refresh.mts): earnings.json, the week so far; and each week that has just
+//                             closed (Friday 15:00 Lisbon) is calculated and kept as week-<n>.json, due
+//   GET  /earnings.json       the public page's document (hub/earnings.html), read from the store
+//   POST /api/admin           jackpot: the weeks; jackpot-recompute: a week not sent yet, again; jackpot-paid: the hash of
+//                             the payment; jackpot-clear: forget a send that never went through
+// No key here: the treasury signs in the admin page, in its own wallet. The service only reads the chain: a week is paid when
+// a mined transaction from the treasury to Disperse carries exactly its lines, plus one line of its wall amount (that line's
+// address is the wall's, typed in the page). A week with a hash cannot be paid again.
+import { decodeDisperse, DISPERSE } from './disperse.js';
+import { readGames, WALLET, type Game, type GamesStore } from './games.js';
+import { buildPlan, closedWeeks, earningsOf, numberedWeek, shortWallet, type Best, type NumberedWeek, type Plan } from './jackpot.js';
+import { TREASURY } from './pot.js';
+import { clientOf, usageOf } from './stats-sources.js';
+
+
+export type WeekRecord = { plan: Plan; status: 'due' | 'sent' | 'paid'; computedAt: string; hash?: string; wall?: string; by?: string; sentAt?: string; paidAt?: string; note?: string };
+export type JackpotDeps = {
+  fetch: typeof fetch; now(): number; token: string | undefined;
+  store: { getText(key: string): Promise<string | null>; set(key: string, value: string): Promise<void> };
+  games: Pick<GamesStore, 'getText' | 'set' | 'delete' | 'getBytes'>;
+  /** one call to a public Ethereum RPC */
+  rpc(method: string, params: unknown[]): Promise<unknown>;
+};
+type Entry = { player?: { kind?: string; id?: string; ensName?: string | null }; score?: string };
+
+/** A game's best score of the week with a wallet behind it; null when it has none. Throws when the board cannot be read. */
+export async function bestOf(fetchImpl: typeof fetch, game: Game, week: NumberedWeek): Promise<Best | null> {
+  const r = await fetchImpl(`${game.origin}/api/v1/games/${game.appId}/scoring/leaderboard?from=${encodeURIComponent(week.from)}&to=${encodeURIComponent(week.to)}`, { signal: AbortSignal.timeout(6000) });
+  if (!r.ok) throw new Error(`${game.title}: HTTP ${r.status}`);
+  const { entries } = await r.json() as { entries?: Entry[] };
+  const top = (entries ?? []).find((e) => e.player?.kind === 'wallet' && WALLET.test(e.player.id ?? ''));
+  if (!top?.player?.id) return null;
+  const wallet = top.player.id.toLowerCase();
+  return { wallet, name: top.player.ensName || shortWallet(wallet), score: Number(top.score) || 0 };
+}
+
+/** The week from the sources. Strict: a report or a board that cannot be read throws, so no week is ever kept with a hole in it. */
+async function planOf(deps: JackpotDeps, week: NumberedWeek, opts: { strict: boolean; everyGame: boolean }): Promise<Plan> {
+  const client = clientOf({ fetch: deps.fetch, token: deps.token });
+  if (!client) throw new Error('no RARE_PROFILE_TOKEN');
+  const usage = await usageOf(client, Date.parse(week.from), Math.min(Date.parse(week.to), deps.now() + 1));
+  const credits = Object.fromEntries(Object.entries(usage.games).map(([id, g]) => [id, g.credits]));
+  const games = await readGames(deps.games as GamesStore);
+  const wanted = games.filter((g) => (credits[g.appId] ?? 0) > 0 || (opts.everyGame && g.status === 'live'));
+  const bests = Object.fromEntries(await Promise.all(wanted.map(async (g): Promise<[string, Best | null]> => {
+    try { return [g.appId, await bestOf(deps.fetch, g, week)]; } catch (error) { if (opts.strict) throw error; return [g.appId, null]; }
+  })));
+  return buildPlan(week, credits, games, bests, opts.everyGame);
+}
+
+const keyOf = (n: number): string => `week-${n}.json`;
+async function readWeek(deps: JackpotDeps, n: number): Promise<WeekRecord | null> {
+  return JSON.parse((await deps.store.getText(keyOf(n))) ?? 'null') as WeekRecord | null;
+}
+const saveWeek = (deps: JackpotDeps, r: WeekRecord): Promise<void> => deps.store.set(keyOf(r.plan.n), JSON.stringify(r));
+async function computeWeek(deps: JackpotDeps, week: NumberedWeek): Promise<WeekRecord> {
+  const record: WeekRecord = { plan: await planOf(deps, week, { strict: true, everyGame: false }), status: 'due', computedAt: new Date(deps.now()).toISOString() };
+  await saveWeek(deps, record);
+  return record;
+}
+
+/** Every closed week, newest first; one that cannot be calculated yet says why. */
+async function allWeeks(deps: JackpotDeps): Promise<(WeekRecord | { n: number; error: string })[]> {
+  const weeks = await Promise.all(closedWeeks(deps.now()).map(async (w) => {
+    try { return await readWeek(deps, w.n) ?? await computeWeek(deps, w); }
+    catch (error) { return { n: w.n, error: error instanceof Error ? error.message.slice(0, 160) : 'unreadable' }; }
+  }));
+  return weeks.reverse();
+}
+
+/** The scheduled pass: the closed weeks, and the week so far (the last good earnings stay if the sources fail). */
+export async function refreshJackpot(deps: JackpotDeps): Promise<void> {
+  await allWeeks(deps);
+  await writeEarnings(deps);
+}
+async function writeEarnings(deps: JackpotDeps): Promise<string> {
+  const body = JSON.stringify(earningsOf(await planOf(deps, numberedWeek(deps.now()), { strict: false, everyGame: true }), new Date(deps.now()).toISOString()));
+  await deps.store.set('earnings.json', body);
+  return body;
+}
+
+export async function handleEarnings(deps: JackpotDeps): Promise<Response> {
+  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+  try {
+    const body = await deps.store.getText('earnings.json') ?? await writeEarnings(deps);
+    return new Response(body, { headers: { ...headers, 'Cache-Control': 'public, max-age=60', 'Netlify-CDN-Cache-Control': 'public, s-maxage=60' } });
+  } catch {
+    return new Response(JSON.stringify({ error: 'not ready' }), { status: 503, headers: { ...headers, 'Cache-Control': 'no-store' } });
+  }
+}
+
+type Tx = { from?: string; to?: string; value?: string; input?: string };
+type Receipt = { status?: string };
+export type Payment = { state: 'unseen' | 'pending' | 'reverted' } | { state: 'wrong'; why: string } | { state: 'paid'; wall: string };
+
+/** What the chain says of a hash, against the week's plan. */
+export async function readPayment(deps: Pick<JackpotDeps, 'rpc'>, plan: Plan, hash: string): Promise<Payment> {
+  const tx = await deps.rpc('eth_getTransactionByHash', [hash]) as Tx | null;
+  if (!tx) return { state: 'unseen' };
+  const receipt = await deps.rpc('eth_getTransactionReceipt', [hash]) as Receipt | null;
+  if (!receipt) return { state: 'pending' };
+  if (receipt.status !== '0x1') return { state: 'reverted' };
+  if (tx.from?.toLowerCase() !== TREASURY) return { state: 'wrong', why: 'not sent by the treasury' };
+  if (tx.to?.toLowerCase() !== DISPERSE) return { state: 'wrong', why: 'not a Disperse payment' };
+  if (BigInt(tx.value ?? '0') !== BigInt(plan.sendWei)) return { state: 'wrong', why: 'the amount is not the week\'s' };
+  let sent;
+  try { sent = decodeDisperse(tx.input ?? ''); } catch { return { state: 'wrong', why: 'not a Disperse payment' }; }
+  const rest = sent.map((l) => ({ wallet: l.wallet.toLowerCase(), wei: l.wei }));
+  for (const line of plan.lines) {
+    const i = rest.findIndex((l) => l.wallet === line.wallet && l.wei === BigInt(line.wei));
+    if (i < 0) return { state: 'wrong', why: `${line.name} is missing or wrong` };
+    rest.splice(i, 1);
+  }
+  const wall = rest[0];
+  if (rest.length !== 1 || !wall || wall.wei !== BigInt(plan.wallWei)) return { state: 'wrong', why: 'the wall\'s line is missing or wrong' };
+  return { state: 'paid', wall: wall.wallet };
+}
+
+/** The admin page's jackpot actions. */
+export async function adminJackpot(deps: JackpotDeps, body: Record<string, unknown>, admin: string): Promise<{ status: number; body: unknown }> {
+  const done = async (): Promise<{ status: number; body: unknown }> => ({ status: 200, body: { ok: true, weeks: await allWeeks(deps), treasury: TREASURY, disperse: DISPERSE } });
+  if (body.action === 'jackpot') return done();
+  const week = closedWeeks(deps.now()).find((w) => w.n === body.week);
+  if (!week) return { status: 400, body: { error: 'no such closed week' } };
+  const record = await readWeek(deps, week.n);
+  if (body.action === 'jackpot-recompute') {
+    if (record && record.status !== 'due') return { status: 409, body: { error: 'A payment went out for this week: it cannot be calculated again.' } };
+    try { await computeWeek(deps, week); } catch (error) { return { status: 502, body: { error: `Not recalculated: ${error instanceof Error ? error.message : 'the sources failed'}` } }; }
+    return done();
+  }
+  if (!record) return { status: 404, body: { error: 'This week has not been calculated yet.' } };
+  if (record.status === 'paid') return { status: 409, body: { error: 'This week is already paid.' } };
+  const hash = body.action === 'jackpot-clear' ? record.hash ?? '' : typeof body.hash === 'string' ? body.hash.trim().toLowerCase() : '';
+  if (!/^0x[0-9a-f]{64}$/.test(hash)) return { status: 400, body: { error: 'hash: 0x and 64 hex digits' } };
+  const others = await Promise.all(closedWeeks(deps.now()).filter((w) => w.n !== week.n).map((w) => readWeek(deps, w.n)));
+  if (others.some((r) => r?.hash === hash)) return { status: 409, body: { error: 'This hash already paid another week.' } };
+  let payment: Payment;
+  try { payment = await readPayment(deps, record.plan, hash); } catch { return { status: 502, body: { error: 'The chain cannot be read right now. Nothing changed: try again.' } }; }
+  if (body.action === 'jackpot-clear') {
+    if (payment.state === 'pending' || payment.state === 'paid') return { status: 409, body: { error: 'This transaction is on its way or mined: it cannot be forgotten.' } };
+    const { hash: _h, sentAt: _s, wall: _w, ...rest } = record;
+    await saveWeek(deps, { ...rest, status: 'due', note: `${hash} forgotten by ${admin}` });
+    return done();
+  }
+  if (payment.state === 'wrong') return { status: 400, body: { error: `Not this week's payment: ${payment.why}.` } };
+  if (payment.state === 'reverted') {
+    const { hash: _h, sentAt: _s, wall: _w, ...rest } = record;
+    await saveWeek(deps, { ...rest, status: 'due', note: `${hash} reverted: nothing was paid` });
+    return done();
+  }
+  const at = new Date(deps.now()).toISOString();
+  await saveWeek(deps, payment.state === 'paid'
+    ? { ...record, status: 'paid', hash, wall: payment.wall, by: admin, paidAt: at, sentAt: record.sentAt ?? at }
+    : { ...record, status: 'sent', hash, by: admin, sentAt: record.sentAt ?? at });
+  return done();
+}

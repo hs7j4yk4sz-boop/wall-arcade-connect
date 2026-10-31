@@ -3,7 +3,9 @@
 // games.json. Each button sends the Connect access token again, the service checks it with SuperRare every time.
 // PUT IT ON THE HUB: live, last column, NEW. HIDE: off the hub. ↑ ↓: the order of the columns. ?app=<appId>: that game first.
 // ADD A GAME: a game sent by DM (the name on the wall, the address, the app ID), the same eight checks as SUBMIT YOUR GAME.
+// JACKPOT: the closed weeks and PAY (hub/admin-jackpot.ts).
 import { ConnectPopupBlockedError, createSuperRareClient } from '@rareprotocol/connect';
+import { mountJackpot } from './admin-jackpot.js';
 
 const API = 'https://wall-arcade-cards.netlify.app/api/admin', SITE = 'https://wall-arcade-cards.netlify.app';
 type Check = { n: number; ok: boolean | null; label: string; fix?: string };
@@ -172,15 +174,18 @@ async function move(i: number, by: -1 | 1): Promise<void> {
   await act({ action: 'order', appIds: live }, 'Order saved: the hub follows within a minute.', live[i + by]);
 }
 
+const jackpot = mountJackpot({ call: call as Parameters<typeof mountJackpot>[0]['call'], el });
+
 async function render(): Promise<void> {
-  if (!client.auth.getSession()) { $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; return; }
+  if (!client.auth.getSession()) { $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; $('jackpotBox').hidden = true; return; }
   status.textContent = 'Checking your wallet…';
   try {
     const { code, data } = await call({ action: 'whoami' });
-    if (code === 403) { status.textContent = `Not an admin wallet${data.wallet ? ` (${data.wallet})` : ''}.`; $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; return; }
+    if (code === 403) { status.textContent = `Not an admin wallet${data.wallet ? ` (${data.wallet})` : ''}.`; $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; $('jackpotBox').hidden = true; return; }
     if (code === 401) { status.textContent = 'Sign in again.'; return; }
     if (code !== 200 || !data.games) throw new Error(`HTTP ${code}`);
     games = data.games; draw(); status.textContent = `Signed in as ${data.wallet}.`;
+    await jackpot.load();
   } catch { status.textContent = 'The card service did not answer. Try again.'; }
 }
 

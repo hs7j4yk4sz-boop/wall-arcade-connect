@@ -147,6 +147,18 @@ ten minutes at most each. No secret: the clip goes to `POST /api/clip` with the 
 checks against GitHub's keys (`cards/src/clip-upload.ts`: this repository, main, this workflow). A failed clip changes
 nothing, the still stays, and the next night tries again.
 
+**JACKPOT, in the admin page:** every Friday at 15:00 Lisbon the card service calculates the week that closed
+(`cards/src/jackpot.ts`, the scheduled pass of `netlify/functions/jackpot-refresh.mts` every 15 minutes, kept as
+`week-<n>.json` in the store "jackpot"): by game, the credits played (SuperRare's usage report) × 0.0001 ETH, a pack
+divided by 50; 50% to the week's best score, 40% to the artist (`payoutWallet` of games.json; our own games: to the
+wall), 10% to the wall. Credits not played stay in the treasury, and so does a share with nowhere to go (no score, no
+artist wallet: the week says so). PAY builds one Disperse call (`0xD152f549545093347A162Dce210e7293f1452150`,
+`cards/src/disperse.ts`) for the wallet in the browser, with a line for the wall's NFC address typed there. It is live
+only for the treasury, on mainnet, with a balance that covers the week. No key on the service: the treasury signs. The
+hash is recorded at once, so a send on its way cannot be doubled, and the service marks the week paid only from the
+chain: a mined transaction from the treasury to Disperse with exactly the week's lines plus the wall's. The admin wallets
+are `ADMINS` in `cards/src/submit-netlify.ts` (johnkarp.eth and the treasury), and `ADMIN_WALLET` adds others.
+
 John plays it at its address, then opens `admin.html` on the hub (linked from no page; the card service answers only to
 a wallet of its `ADMIN_WALLET` variable, comma-separated): PUT IT ON THE HUB (last column, NEW), HIDE, ↑ ↓ for the order
 of the columns, EDIT, ATTACH again if the group refused it, a new capture. ADD A GAME, for a game sent by DM: the name on
