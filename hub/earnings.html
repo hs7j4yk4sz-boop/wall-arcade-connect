@@ -77,7 +77,7 @@ function lisbon(t) { return new Date(t).toLocaleString('en-GB', { timeZone: 'Eur
 function draw(d) {
   $('week').textContent = 'Week ' + d.week.n + ' · ends ' + lisbon(d.week.to) + ' Lisbon';
   $('total').textContent = d.totalEth + ' ETH';
-  $('when').textContent = d.credits + ' credits played · updated ' + lisbon(d.updatedAt);
+  $('when').textContent = d.credits + (d.credits === 1 ? ' credit' : ' credits') + ' played · updated ' + lisbon(d.updatedAt);
   $('rows').replaceChildren.apply($('rows'), d.games.map(function (g) {
     var row = document.createElement('div'), credits = document.createElement('div');
     row.className = 'row';
