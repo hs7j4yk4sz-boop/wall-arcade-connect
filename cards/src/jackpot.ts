@@ -2,7 +2,9 @@
 // (SuperRare's usage report) × 0.0001 ETH (a pack, 0.005 ETH, is 50 plays); of that, 50% to the week's best score, 40% to the
 // artist (their wallet in games.json; our own games: to the wall), 10% to the wall. Credits not played stay in the treasury.
 // A share with nowhere to go (a game with credits and no score, an artist with no wallet) stays there too, and is said.
+// The week's FINALE (cards/src/finale.ts) goes out with it, in the same lines; it is NFC's 0.1 ETH, not the credits'.
 // All amounts are wei, as strings in JSON. Everything here is pure: the sources are in cards/src/jackpot-service.ts.
+import type { FinalePick, Winner } from './finale.js';
 import type { Game } from './games.js';
 import { lisbonWeek, type Week } from './week.js';
 
@@ -16,12 +18,13 @@ export type GameShare = {
   artistWallet: string | null; ours: boolean; bestWei: string; artistWei: string; wallWei: string;
 };
 export type PayLine = { wallet: string; wei: string; name: string; for: string[] };
-export type Plan = NumberedWeek & { credits: number; totalWei: string; games: GameShare[]; lines: PayLine[]; wallWei: string; sendWei: string; heldWei: string; held: string[] };
+export type PlanFinale = { title: string; artist: string; winners: Winner[]; wei: string };
+export type Plan = NumberedWeek & { credits: number; totalWei: string; games: GameShare[]; lines: PayLine[]; wallWei: string; sendWei: string; heldWei: string; held: string[]; finale?: PlanFinale };
 
 /** The week holding `now`, numbered as on the hub: week 1 is the long first one, then one a week. */
 export function numberedWeek(now: number): NumberedWeek {
   const week = lisbonWeek(now), first = lisbonWeek(0);
-  return { ...week, n: week.from === first.from ? 1 : 2 + Math.round((Date.parse(week.from) - Date.parse(first.to)) / WEEK_MS) };
+  return { ...week, n: week.from === first.from ? 1 : 2 + Math.ceil((Date.parse(week.from) - Date.parse(first.to) - 2 * 3_600_000) / WEEK_MS) };   // week 2 is short; two hours of room for a DST change
 }
 /** Every week closed at `now`, oldest first. */
 export function closedWeeks(now: number): NumberedWeek[] {
@@ -38,8 +41,8 @@ export function ethOf(wei: bigint | string): string {
 export const shortWallet = (w: string): string => `${w.slice(0, 6)}…${w.slice(-4)}`;
 
 /** The week: `credits` by app id (the usage report), `games` (games.json), `bests` by app id (each game's top score of the week).
- *  `everyGame` also lists the live games with no credit yet, as the public page shows them. */
-export function buildPlan(week: NumberedWeek, credits: Record<string, number>, games: Game[], bests: Record<string, Best | null>, everyGame = false): Plan {
+ *  `everyGame` also lists the live games with no credit yet, as the public page shows them. `finale`: the week's finale and its winners. */
+export function buildPlan(week: NumberedWeek, credits: Record<string, number>, games: Game[], bests: Record<string, Best | null>, everyGame = false, finale?: { pick: FinalePick; winners: Winner[]; prizeWei: bigint }): Plan {
   const ids = [...new Set([...Object.keys(credits).filter((id) => (credits[id] ?? 0) > 0), ...(everyGame ? games.filter((g) => g.status === 'live').map((g) => g.appId) : [])])];
   const rows = ids.map((appId): GameShare => {
     const game = games.find((g) => g.appId === appId), played = credits[appId] ?? 0, wei = BigInt(played) * CREDIT_WEI;
@@ -66,9 +69,15 @@ export function buildPlan(week: NumberedWeek, credits: Record<string, number>, g
     else if (r.artistWallet) pay(r.artistWallet, r.artistWei, r.artist, `${r.title}: artist`);
     else { heldWei += BigInt(r.artistWei); held.push(`${r.title}: no artist wallet, ${ethOf(r.artistWei)} ETH stays in the treasury`); }
   }
+  if (finale) {
+    const won = finale.winners.reduce((sum, w) => sum + BigInt(w.wei), 0n), left = finale.prizeWei - won;
+    for (const w of finale.winners) pay(w.wallet, w.wei, w.name, `Finale, ${finale.pick.title}: #${w.rank}`);
+    if (left > 0n) { heldWei += left; held.push(`Finale: ${ethOf(left)} ETH with no winner stays in the treasury`); }
+  }
   const total = rows.reduce((sum, r) => sum + BigInt(r.wei), 0n), sent = [...lines.values()].reduce((sum, l) => sum + BigInt(l.wei), wall);
   return { n: week.n, from: week.from, to: week.to, credits: rows.reduce((sum, r) => sum + r.credits, 0), totalWei: String(total), games: rows,
-    lines: [...lines.values()], wallWei: String(wall), sendWei: String(sent), heldWei: String(heldWei), held };
+    lines: [...lines.values()], wallWei: String(wall), sendWei: String(sent), heldWei: String(heldWei), held,
+    ...(finale ? { finale: { title: finale.pick.title, artist: finale.pick.artist, winners: finale.winners, wei: String(finale.prizeWei) } } : {}) };
 }
 
 export type Earnings = {

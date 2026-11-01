@@ -126,7 +126,7 @@ ${s.days.map((d) => `<tr><th>${dayLabel(d.day)}</th><td class="big">${n(d.plays)
 <div class="hours">${hours}</div>
 <p class="legend"><b></b> parties payantes commencées &nbsp; <b class="l"></b> practice</p>
 <h2>Crédits</h2><div class="tiles">
-${tile('Offerts', n(s.credits.granted), '190 holders × 3 par semaine')}${tile('Achetés', n(s.credits.bought), 'packs × 50 depuis le lancement')}${tile('Consommés', n(s.credits.consumed), 'rapport SuperRare')}${tile('En circulation', n(s.credits.inCirculation))}
+${tile('Offerts', n(s.credits.granted), 'holders chaque vendredi, nouveaux wallets')}${tile('Achetés', n(s.credits.bought), 'packs × 50 depuis le lancement')}${tile('Consommés', n(s.credits.consumed), 'rapport SuperRare')}${tile('En circulation', n(s.credits.inCirculation))}
 </div>
 <h2>People</h2><div class="tiles">
 ${s.people ? `${tile('Noms du mur', n(s.people.names))}${tile('Avec sprite', n(s.people.withSprite), s.people.lastSpriteAt ? `dernier ${time(s.people.lastSpriteAt)}` : '')}${tile('Non rattachés', n(s.people.unmatched))}` : tile('People', '—')}

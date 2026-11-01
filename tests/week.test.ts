@@ -1,5 +1,5 @@
-// THIS WEEK = Friday 15:00 Lisbon -> next Friday 15:00 Lisbon, across Lisbon's DST changes; week 1 = Thursday 22 Oct
-// 2026 00:00 -> Friday 30 Oct 15:00 Lisbon. The card service's copy (cards/src/week.ts) and the hub's must agree.
+// THIS WEEK = Thursday 23:00 Lisbon -> next Thursday 23:00 Lisbon, across Lisbon's DST changes; week 1 = Thursday 22 Oct
+// 2026 00:00 -> Friday 30 Oct 15:00 Lisbon, week 2 -> Thursday 5 Nov 23:00. The card service's copy (cards/src/week.ts) and the hub's must agree.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { lisbonWeek, weekEnds } from '../src/shell/week.js';
@@ -17,10 +17,14 @@ const cases: [string, string, string][] = [
   ['2026-10-20T17:00:00Z', '2026-10-21T23:00:00.000Z', '2026-10-30T15:00:00.000Z'],   // before week 1 opens: week 1 (Thu 00:00, UTC+1)
   ['2026-10-23T14:00:00Z', '2026-10-21T23:00:00.000Z', '2026-10-30T15:00:00.000Z'],   // week 1 spans its first Friday 15:00
   ['2026-10-30T14:59:59Z', '2026-10-21T23:00:00.000Z', '2026-10-30T15:00:00.000Z'],   // last second of week 1 (DST ended Sun 25 Oct)
-  ['2026-10-30T15:00:00Z', '2026-10-30T15:00:00.000Z', '2026-11-06T15:00:00.000Z'],   // then Friday 15:00 -> Friday 15:00
-  ['2026-10-31T12:00:00Z', '2026-10-30T15:00:00.000Z', '2026-11-06T15:00:00.000Z'],   // winter (UTC+0)
-  ['2027-03-26T15:00:00Z', '2027-03-26T15:00:00.000Z', '2027-04-02T14:00:00.000Z'],   // DST starts Sun 28 Mar 2027
-  ['2027-01-01T00:00:00Z', '2026-12-25T15:00:00.000Z', '2027-01-01T15:00:00.000Z'],   // across the new year
+  ['2026-10-30T15:00:00Z', '2026-10-30T15:00:00.000Z', '2026-11-05T23:00:00.000Z'],   // week 2, the short one
+  ['2026-11-05T22:59:59Z', '2026-10-30T15:00:00.000Z', '2026-11-05T23:00:00.000Z'],   // its last second
+  ['2026-11-05T23:00:00Z', '2026-11-05T23:00:00.000Z', '2026-11-12T23:00:00.000Z'],   // then Thursday 23:00 -> Thursday 23:00
+  ['2026-11-12T22:59:59Z', '2026-11-05T23:00:00.000Z', '2026-11-12T23:00:00.000Z'],   // Thursday before 23:00: still last week
+  ['2026-11-06T12:00:00Z', '2026-11-05T23:00:00.000Z', '2026-11-12T23:00:00.000Z'],   // winter (UTC+0)
+  ['2027-03-26T15:00:00Z', '2027-03-25T23:00:00.000Z', '2027-04-01T22:00:00.000Z'],   // DST starts Sun 28 Mar 2027: 23:00 Lisbon is 22:00 UTC
+  ['2027-10-29T12:00:00Z', '2027-10-28T22:00:00.000Z', '2027-11-04T23:00:00.000Z'],   // DST ends Sun 31 Oct 2027
+  ['2027-01-01T00:00:00Z', '2026-12-31T23:00:00.000Z', '2027-01-07T23:00:00.000Z'],   // across the new year
 ];
 for (const [now, from, to] of cases) {
   test(`week of ${now}`, () => {
@@ -32,7 +36,7 @@ for (const [now, from, to] of cases) {
 
 test('the label says the real end of the week', () => {
   assert.equal(weekEnds(lisbonWeek(at('2026-10-20T17:00:00Z'))), 'ends Fri Oct 30 · 15:00 Lisbon');
-  assert.equal(weekEnds(lisbonWeek(at('2026-11-01T12:00:00Z'))), 'ends Fri Nov 6 · 15:00 Lisbon');
-  assert.equal(weekEnds(lisbonWeek(at('2027-03-30T12:00:00Z'))), 'ends Fri Apr 2 · 15:00 Lisbon');
+  assert.equal(weekEnds(lisbonWeek(at('2026-11-01T12:00:00Z'))), 'ends Thu Nov 5 · 23:00 Lisbon');
+  assert.equal(weekEnds(lisbonWeek(at('2027-03-30T12:00:00Z'))), 'ends Thu Apr 1 · 23:00 Lisbon');
   assert.equal(cardsEnds(cardsWeek(at('2026-10-20T17:00:00Z'))), 'ends Fri Oct 30 · 15:00 Lisbon');
 });

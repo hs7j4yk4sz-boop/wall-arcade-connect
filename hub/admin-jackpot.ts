@@ -4,14 +4,14 @@
 // sending it asks the service again whether the week is still due, and has the wallet simulate the call; the hash goes to
 // the service at once, so a week with a send on its way cannot be paid twice; the service marks it paid from the chain.
 import { DISPERSE, encodeDisperse } from '../cards/src/disperse.js';
-import { ethOf, type GameShare, type PayLine } from '../cards/src/jackpot.js';
+import { ethOf, type GameShare, type PayLine, type PlanFinale } from '../cards/src/jackpot.js';
 
-type Plan = { n: number; from: string; to: string; credits: number; totalWei: string; games: GameShare[]; lines: PayLine[]; wallWei: string; sendWei: string; heldWei: string; held: string[] };
+type Plan = { n: number; from: string; to: string; credits: number; totalWei: string; games: GameShare[]; lines: PayLine[]; wallWei: string; sendWei: string; heldWei: string; held: string[]; finale?: PlanFinale };
 type WeekRecord = { plan: Plan; status: 'due' | 'sent' | 'paid'; hash?: string; wall?: string; sentAt?: string; paidAt?: string; note?: string };
 type WeekView = WeekRecord | { n: number; error: string };
 type Answer = { code: number; data: { weeks?: WeekView[]; treasury?: string; error?: string } };
-type Eip1193 = { request(args: { method: string; params?: unknown[] }): Promise<unknown>; on?(event: string, listener: () => void): void };
-type Mount = { call(body: Record<string, unknown>): Promise<Answer>; el: <K extends keyof HTMLElementTagNameMap>(tag: K, attrs?: Record<string, string>, text?: string) => HTMLElementTagNameMap[K] };
+export type Eip1193 = { request(args: { method: string; params?: unknown[] }): Promise<unknown>; on?(event: string, listener: () => void): void };
+export type Mount = { wallet?: Eip1193; call(body: Record<string, unknown>): Promise<Answer>; el: <K extends keyof HTMLElementTagNameMap>(tag: K, attrs?: Record<string, string>, text?: string) => HTMLElementTagNameMap[K] };
 
 const ETHERSCAN = 'https://etherscan.io/tx/', WALL_KEY = 'wall-address', MAINNET = '0x1', ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const remembered = (): string => { try { return localStorage.getItem(WALL_KEY) ?? ''; } catch { return ''; } };
@@ -23,10 +23,10 @@ const failure = (error: unknown): string => {
   return e?.code === 4001 ? 'Refused in the wallet: nothing was sent.' : (e?.message ?? 'The wallet did not answer.').slice(0, 200);
 };
 
-export function mountJackpot({ call, el }: Mount): { load(): Promise<void> } {
+export function mountJackpot({ wallet: standIn, call, el }: Mount): { load(): Promise<void> } {
   const box = document.getElementById('jackpotWeeks') as HTMLElement, connect = document.getElementById('walletConnect') as HTMLButtonElement;
   const seen = document.getElementById('walletSeen') as HTMLElement, top = document.getElementById('jackpotNote') as HTMLElement;
-  const provider = (): Eip1193 | undefined => (window as unknown as { ethereum?: Eip1193 }).ethereum;
+  const provider = (): Eip1193 | undefined => standIn ?? (window as unknown as { ethereum?: Eip1193 }).ethereum;
   let weeks: WeekView[] = [], treasury = '', account = '', chain = '', balance: bigint | null = null, sending = false;
   const say = (text: string, bad = false): void => { top.textContent = text; top.className = `note${bad ? ' bad' : ''}`; };
 
@@ -109,9 +109,10 @@ export function mountJackpot({ call, el }: Mount): { load(): Promise<void> } {
 
   function weekCard(week: WeekRecord): HTMLElement {
     const { plan } = week, card = el('div', { class: 'week', id: `week-${plan.n}` });
-    card.append(el('h3', {}, `Week ${plan.n}: ${plan.credits} credits, ${ethOf(plan.totalWei)} ETH`),
+    card.append(el('h3', {}, `Week ${plan.n}: ${plan.credits} credits, ${ethOf(plan.totalWei)} ETH${plan.finale ? ` + the finale's ${ethOf(plan.finale.wei)}` : ''}`),
       el('p', { class: 'meta' }, `${day(plan.from)} to ${day(plan.to)} · ${week.status === 'paid' ? `paid ${day(week.paidAt ?? '')}` : week.status === 'sent' ? 'sent, not confirmed' : 'to pay'}`));
     if (plan.games.length) card.append(table(plan));
+    if (plan.finale) card.append(el('p', { class: 'meta' }, `Finale: ${plan.finale.title} by ${plan.finale.artist}, ${plan.finale.winners.length} of 5 places, ${ethOf(plan.finale.wei)} ETH from NFC. ${plan.finale.winners.map((w) => `#${w.rank} ${w.name} ${w.score}`).join(' · ')}`));
     for (const h of plan.held) card.append(el('p', { class: 'meta warn' }, h));
     if (week.note) card.append(el('p', { class: 'meta warn' }, week.note));
     const list = el('ul', { class: 'lines' });

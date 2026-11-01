@@ -87,6 +87,8 @@ h2{font-size:clamp(28px,4vw,44px);margin-top:40px;border-top:1px solid var(--ink
 .week input{min-height:44px;padding:8px 10px;border:1px solid var(--ink);background:#fff;font:400 15px/1.2 var(--inter);border-radius:0;width:100%}
 .week .acts{display:flex;flex-wrap:wrap;gap:8px}
 .week .paste{display:grid;grid-template-columns:1fr auto;gap:8px}
+.week select{min-height:44px;padding:8px 10px;border:1px solid var(--ink);background:#fff;font:400 15px/1.2 var(--inter);border-radius:0;width:100%}
+.preview{position:sticky;top:0;z-index:30;margin:-24px -16px 16px;padding:8px 16px;background:var(--ink);color:#fff;font:500 12px/1.4 var(--mono)}
 @media (max-width:640px){ .add form{grid-template-columns:1fr} .g{grid-template-columns:1fr} .g img,.g video,.g .noshot{width:100%;height:auto;aspect-ratio:1} .g form{grid-template-columns:1fr} }
 </style>
 </head>
@@ -111,6 +113,11 @@ h2{font-size:clamp(28px,4vw,44px);margin-top:40px;border-top:1px solid var(--ink
     </form>
     <p class="note" id="addNote" aria-live="polite"></p>
     <ul class="checks" id="addChecks" hidden aria-live="polite"></ul>
+  </div>
+  <div class="jackpot" id="finaleBox" hidden>
+    <h2 class="anton">Finale</h2>
+    <p class="note" id="finaleNote" aria-live="polite">Each Thursday 16:00 to 23:00 Lisbon, one artist's game: 0.1 ETH to its top 5, 0.02 ETH each, the artist out of their own prizes. It goes out with the week in PAY. A finale that has started keeps its game.</p>
+    <div id="finaleWeeks"></div>
   </div>
   <div class="jackpot" id="jackpotBox" hidden>
     <h2 class="anton">Jackpot</h2>

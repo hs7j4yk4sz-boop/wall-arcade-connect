@@ -4,7 +4,9 @@
 // the card service (POST /people/capture), which checks it with SuperRare and answers a link with a token signed for
 // that wallet's name, valid 2 minutes. The link opens in the instant of the click (a window opened at once, sent to the
 // link when it arrives); another click asks for a new token. Anyone else keeps "People of the wall only." and SIGN IN.
-// Sign-in only: no game authorization, no credit, no payment on this page. Connect opens in a popup on the click.
+// Sign-in only: no game authorization, no payment on this page. Connect opens in a popup on the click.
+// GET 5 FREE PLAYS, under the games: a new wallet signs in, the card service (POST /api/welcome) checks the session with
+// SuperRare and grants its 5 credits, once.
 import { ConnectPopupBlockedError, createSuperRareClient } from '@rareprotocol/connect';
 
 const CARDS = 'https://wall-arcade-cards.netlify.app';
@@ -79,6 +81,30 @@ new IntersectionObserver((entries, observer) => {
   prepared = true; observer.disconnect();
   void client.auth.prepareLogin().catch(() => { prepared = false; });
 }).observe($('people'));
+
+const claim = $<HTMLButtonElement>('welcomeClaim'), said = $('welcomeSaid');
+const answers: Record<string, string> = {
+  granted: '5 plays are in your wallet. Pick a game: each one starts with your consent.', already: 'This wallet already has its 5 free plays.',
+  known: 'This wallet has played here before: the 5 free plays are for new wallets.', full: 'This week\'s 200 wallets are in. Come back after Thursday 23:00 Lisbon.',
+};
+claim.addEventListener('click', async () => {
+  claim.disabled = true; said.textContent = 'SuperRare Connect is open in a popup.';
+  let watch: ReturnType<typeof setInterval> | undefined;
+  try {
+    // login() ends after the session is saved, up to 20 s later (see SIGN IN): the session is what counts
+    if (!client.auth.getSession()) await Promise.race([client.auth.login(), new Promise((signedIn) => { watch = setInterval(() => { if (client.auth.getSession()) signedIn(null); }, 500); })]);
+    clearInterval(watch);
+    if (!client.auth.getSession()) { said.textContent = 'Sign in to get your plays.'; return; }
+    said.textContent = 'Adding your plays…';
+    const accessToken = await client.auth.getAccessToken();
+    const response = await fetch(`${CARDS}/api/welcome`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accessToken }) });
+    const data = await response.json().catch(() => ({})) as { state?: string; error?: string };
+    said.textContent = answers[data.state ?? ''] ?? data.error ?? 'The plays could not be added. Try again in a minute.';
+    void render();
+  } catch (error) {
+    said.textContent = error instanceof ConnectPopupBlockedError ? 'Allow pop-ups for this page, then press the button again.' : 'Sign-in failed. Try again.';
+  } finally { clearInterval(watch); claim.disabled = false; }
+});
 
 signIn.addEventListener('click', async () => {
   signIn.disabled = true; signingIn = true;

@@ -1,6 +1,6 @@
 // THE WALL ARCADE's numbers (GET /stats and /stats.json, cards/src/stats-page.ts), pure: everything is read beforehand
-// (cards/src/stats-sources.ts) and summed here, for three windows: today (Lisbon day), this week (Friday 15:00 Lisbon to
-// Friday 15:00) and since the launch (Tuesday 27 October 2026, 14:00 Lisbon).
+// (cards/src/stats-sources.ts) and summed here, for three windows: today (Lisbon day), this week (Thursday 23:00 Lisbon to
+// Thursday 23:00) and since the launch (Tuesday 27 October 2026, 14:00 Lisbon).
 // Plays started and completed are SuperRare's own report (credit-group usage) when it can be read; free versus paid is
 // ours: a holder's first 3 paid starts of a week are free (the 3 credits granted each week), the rest are paid, and a
 // non-holder's are all paid (no grant). It needs plays per wallet, so it comes from our tags (cards/src/events.ts).
@@ -28,6 +28,7 @@ export type StatsInputs = {
   packs: Pack[];
   leaderboards: Record<string, Partial<Record<WindowKey, LeaderRow[]>>>;   // by app id
   pot: string | null;
+  given?: number;                                                  // credits given by the card service since (cards/src/credits-service.ts)
   people: { names: number; withSprite: number; unmatched: number; lastSpriteAt: string | null; mirrored: Record<string, string> } | null;
   sources: Record<string, string>;
 };
@@ -73,7 +74,7 @@ export function paidStarts(events: ArcadeEvent[]): ArcadeEvent[] {
     seen.add(run); return true;
   });
 }
-/** Each paid start, free or paid: a holder's first FREE_PER_WEEK of a week (Friday 15:00 Lisbon) are free. A start with
+/** Each paid start, free or paid: a holder's first FREE_PER_WEEK of a week (Thursday 23:00 Lisbon) are free. A start with
  *  no wallet is left unclassified. */
 export function classify(starts: ArcadeEvent[], holders: Set<string>): { event: ArcadeEvent; kind: 'free' | 'paid' | 'unknown' }[] {
   const used = new Map<string, number>();
@@ -218,7 +219,7 @@ export function buildStats(input: StatsInputs) {
     now: { pot: input.pot, weekEndsAt: lisbonWeek(now).to, playersToday: T.players.wallets, playsToday: T.plays.total.started },
     windows: perWindow,
     days, hours,
-    credits: { granted: GRANTED_WALLETS * FREE_PER_WEEK, bought, consumed, inCirculation: consumed === null ? null : GRANTED_WALLETS * FREE_PER_WEEK + bought - consumed },
+    credits: { granted: GRANTED_WALLETS * FREE_PER_WEEK + (input.given ?? 0), bought, consumed, inCirculation: consumed === null ? null : GRANTED_WALLETS * FREE_PER_WEEK + (input.given ?? 0) + bought - consumed },
     people: input.people ? { names: input.people.names, withSprite: input.people.withSprite, unmatched: input.people.unmatched, lastSpriteAt: input.people.lastSpriteAt } : null,
     funnel,
     sources: input.sources,

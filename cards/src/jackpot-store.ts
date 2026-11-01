@@ -1,5 +1,6 @@
-// The jackpot's store on Netlify Blobs (store "jackpot"): earnings.json and week-<n>.json (cards/src/jackpot-service.ts).
+// The jackpot's store on Netlify Blobs (store "jackpot"): earnings.json, live.json, week-<n>.json and finale-<n>.json (cards/src/jackpot-service.ts).
 import { getStore } from '@netlify/blobs';
+import { SITE } from './games.js';
 import { gamesStore } from './games-store.js';
 import type { JackpotDeps } from './jackpot-service.js';
 import { RPCS } from './pot.js';
@@ -24,4 +25,12 @@ export function jackpotDeps(): JackpotDeps {
     fetch, now: () => Date.now(), token: process.env.RARE_PROFILE_TOKEN || undefined, rpc, games: gamesStore(),
     store: { getText: (key) => store.get(key, { type: 'text' }), set: async (key, value) => { await store.set(key, value); } },
   };
+}
+
+/** A Netlify draft's: Blobs are shared by every deploy, so a draft reads and never writes. RARE_PROFILE_TOKEN is production's only,
+ *  so its plays are those of production's public earnings.json, the 15-minute reading. */
+export function draftDeps(): JackpotDeps {
+  const deps = jackpotDeps();
+  return { ...deps, token: undefined, plays: async () => ((await (await fetch(`${SITE}/earnings.json`, { signal: AbortSignal.timeout(5000) })).json()) as { credits: number }).credits,
+    store: { getText: async (key) => (key === 'live.json' ? null : deps.store.getText(key)), set: async () => undefined } };
 }

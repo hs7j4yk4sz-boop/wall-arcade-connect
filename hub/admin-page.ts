@@ -3,8 +3,10 @@
 // games.json. Each button sends the Connect access token again, the service checks it with SuperRare every time.
 // PUT IT ON THE HUB: live, last column, NEW. HIDE: off the hub. ↑ ↓: the order of the columns. ?app=<appId>: that game first.
 // ADD A GAME: a game sent by DM (the name on the wall, the address, the app ID), the same eight checks as SUBMIT YOUR GAME.
-// JACKPOT: the closed weeks and PAY (hub/admin-jackpot.ts).
+// JACKPOT: the closed weeks and PAY (hub/admin-jackpot.ts). FINALE: each week's game (hub/admin-finale.ts).
 import { ConnectPopupBlockedError, createSuperRareClient } from '@rareprotocol/connect';
+import { demo } from './admin-env.js';
+import { mountFinale } from './admin-finale.js';
 import { mountJackpot } from './admin-jackpot.js';
 
 const API = 'https://wall-arcade-cards.netlify.app/api/admin', SITE = 'https://wall-arcade-cards.netlify.app';
@@ -23,6 +25,7 @@ const focus = new URLSearchParams(location.search).get('app');
 let games: Game[] = [];
 
 async function call(body: Record<string, unknown>): Promise<{ code: number; data: { games?: Game[]; error?: string; wallet?: string; ok?: boolean; checks?: Check[]; errors?: Record<string, string>; game?: Game } }> {
+  if (demo) return demo.call(body) as never;
   const accessToken = await client.auth.getAccessToken();
   const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, accessToken }) });
   return { code: r.status, data: await r.json().catch(() => ({})) };
@@ -174,18 +177,19 @@ async function move(i: number, by: -1 | 1): Promise<void> {
   await act({ action: 'order', appIds: live }, 'Order saved: the hub follows within a minute.', live[i + by]);
 }
 
-const jackpot = mountJackpot({ call: call as Parameters<typeof mountJackpot>[0]['call'], el });
+const jackpot = mountJackpot({ call: call as Parameters<typeof mountJackpot>[0]['call'], el, ...(demo ? { wallet: demo.wallet } : {}) });
+const finale = mountFinale({ call: call as Parameters<typeof mountFinale>[0]['call'], el });
 
 async function render(): Promise<void> {
-  if (!client.auth.getSession()) { $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; $('jackpotBox').hidden = true; return; }
+  if (!client.auth.getSession() && !demo) { $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; $('jackpotBox').hidden = true; $('finaleBox').hidden = true; return; }
   status.textContent = 'Checking your wallet…';
   try {
     const { code, data } = await call({ action: 'whoami' });
-    if (code === 403) { status.textContent = `Not an admin wallet${data.wallet ? ` (${data.wallet})` : ''}.`; $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; $('jackpotBox').hidden = true; return; }
+    if (code === 403) { status.textContent = `Not an admin wallet${data.wallet ? ` (${data.wallet})` : ''}.`; $('board').hidden = true; $('addOpen').hidden = true; $('addBox').hidden = true; $('jackpotBox').hidden = true; $('finaleBox').hidden = true; return; }
     if (code === 401) { status.textContent = 'Sign in again.'; return; }
     if (code !== 200 || !data.games) throw new Error(`HTTP ${code}`);
     games = data.games; draw(); status.textContent = `Signed in as ${data.wallet}.`;
-    await jackpot.load();
+    await Promise.all([finale.load(), jackpot.load()]);
   } catch { status.textContent = 'The card service did not answer. Try again.'; }
 }
 
@@ -200,5 +204,6 @@ signIn.addEventListener('click', async () => {
     status.textContent = error instanceof ConnectPopupBlockedError ? 'Allow pop-ups for this page, then SIGN IN again.' : 'Sign-in failed. Try again.';
   } finally { signIn.disabled = false; }
 });
-void client.auth.prepareLogin().catch(() => undefined);
+if (demo) { signIn.hidden = true; document.querySelector('main')?.prepend(el('p', { class: 'preview' }, 'PREVIEW · fictitious data. No session, no real wallet, no chain: PAY sends nothing.')); }
+else void client.auth.prepareLogin().catch(() => undefined);
 void render();

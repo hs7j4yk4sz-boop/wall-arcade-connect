@@ -45,8 +45,8 @@ RULES FOR THE ENGINE AND THE VERIFIER
 - Perfectly legal automated inputs are accepted by these rules: do not call the game bot-proof.
 
 THE LEADERBOARD: ONE WEEK AT A TIME
-- The arcade's week runs Friday 15:00 to Friday 15:00, Lisbon time. Week 1 is longer: Thursday 2026-10-22 00:00 to Friday
-  2026-10-30 15:00 Lisbon, that is "leaderboardWindow": { "from": "2026-10-21T23:00:00Z", "to": "2026-10-30T15:00:00Z" }.
+- The arcade's week runs Thursday 23:00 to Thursday 23:00, Lisbon time, one closing for every game. The first weeks were
+  shorter or longer; from 2026-11-05 23:00 Lisbon every week is seven days.
 - The template reads a fixed window from config.json ("leaderboardWindow", [from, to), both with Z or an explicit offset;
   without it, all time). A fixed window must be rebuilt and redeployed every week. Better: compute the week in the page and
   call getServerLeaderboard({ from, to }) as THE WALL ARCADE does (src/shell/week.ts in our repository), and show the real
@@ -73,7 +73,7 @@ PEOPLE OF THE WALL: every person of the wall has a walking sprite. Use them.
 
 IDENTITY (use, remix or ignore): concrete #DEDBD3, ink #0B0B0B, chalk #F2F0EB, one blue #2E7FD6; Anton for titles.
 
-THE DEAL: Every paid play goes straight into the jackpot. Every Friday it's split: half to the best score on each game, 40% to the artists who made the games, 10% to the wall.
+THE DEAL: Every paid play goes straight into the jackpot. Every Thursday at 23:00 Lisbon it's split: half to the best score on each game, 40% to the artists who made the games, 10% to the wall.
 
 THE RULE
 - The credit line, visible in the game, linked:

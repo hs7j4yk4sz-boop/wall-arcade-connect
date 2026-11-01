@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@500&family=Inter:wght@300;400&display=swap" rel="stylesheet">
 <style>
 /* EARNINGS: the week so far, game by game, from the card service's /earnings.json (cards/src/jackpot.ts: the calculation the
-   Friday payment uses, read again every 15 minutes). The builders page's look (concrete / ink / chalk, one blue). Public. */
+   week's payment uses, read again every 15 minutes). The builders page's look (concrete / ink / chalk, one blue). Public. */
 :root{--concrete:#DEDBD3;--ink:#0B0B0B;--chalk:#F2F0EB;--label:#6B685F;--rule:#C4C0B6;--blue:#2E7FD6;--red:#B3261E;
   --anton:Anton,Impact,'Arial Narrow',sans-serif;--mono:'IBM Plex Mono',ui-monospace,monospace;--inter:Inter,system-ui,sans-serif;--padx:max(16px,5%)}
 *{box-sizing:border-box}
@@ -52,7 +52,7 @@ footer a{color:var(--label)}
   <p class="lbl" id="week" style="margin-top:28px">This week</p>
   <h1 class="anton">Earnings</h1>
   <p class="total" id="total" aria-live="polite">— ETH</p>
-  <p class="rule">If the week ended now. Each credit played is worth 0.0001 ETH: 50% to the game's best score, 40% to its artist, 10% to the wall. Paid every Friday at 15:00 Lisbon.</p>
+  <p class="rule">If the week ended now. Each credit played is worth 0.0001 ETH: 50% to the game's best score, 40% to its artist, 10% to the wall. The week closes every Thursday at 23:00 Lisbon.</p>
   <p class="lbl when" id="when"></p>
   <p class="message" id="message" aria-live="polite">Reading the week…</p>
   <div class="list" id="list" hidden>

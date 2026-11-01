@@ -3,17 +3,22 @@
 // screenshots and teaser video. A plain static app: no Connect, no verifier, no config. Both pages' wall grid is embedded as
 // a snapshot of the public /positions data; the builders page also gets the Connect Kit (docs/CONNECT-KIT.md) inlined
 // behind its COPY THE KIT buttons, after the repository's link.
+// --preview <url>: the pages for a Netlify draft of the card service at <url> (cards/scripts/deploy-draft.sh), no rare-profile
+// update: they read that draft, tags sent nowhere, no sign-in; demo.js (?demo=before|live|after) and the admin page's stand-ins
+// (hub/admin-demo.ts) exist only in this build, and the normal build refuses to hold them.
 import { createHash } from 'node:crypto';
 import { access, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { build } from 'esbuild';
+import { build, type PluginBuild } from 'esbuild';
 import { zipSync, strToU8 } from 'fflate';
 
 type Item = { position: number; tier: string; minted: boolean; name?: string };
 const { values } = parseArgs({ args: process.argv.slice(2)[0] === '--' ? process.argv.slice(3) : process.argv.slice(2),
-  options: { output: { type: 'string' }, force: { type: 'boolean', default: false }, offline: { type: 'boolean', default: false } }, strict: true });
-if (!values.output) throw new Error('Usage: npm run build:hub -- --output <hub.zip> [--force] [--offline]');
+  options: { output: { type: 'string' }, force: { type: 'boolean', default: false }, offline: { type: 'boolean', default: false }, preview: { type: 'string' } }, strict: true });
+if (!values.output) throw new Error('Usage: npm run build:hub -- --output <hub.zip> [--force] [--offline] [--preview <draft url>]');
+const PREVIEW = values.preview?.replace(/\/$/, '');
+if (PREVIEW && !/^https:\/\/[a-z0-9-]+--wall-arcade-cards\.netlify\.app$/.test(PREVIEW)) throw new Error('--preview: a draft of the card service, https://<alias>--wall-arcade-cards.netlify.app');
 
 const html = await readFile(new URL('../hub/src.html', import.meta.url), 'utf8');
 const buildersSource = await readFile(new URL('../hub/builders.html', import.meta.url), 'utf8');
@@ -91,7 +96,8 @@ if (!builders.includes('href="./"')) throw new Error('hub/builders.html must lin
 if (!page.includes("s.src = 'people-gate.js'")) throw new Error('hub/src.html must load people-gate.js');
 for (const [name, source] of [['index.html', page], ['builders.html', builders]] as const) if (/spriteparty\.com\/p\/[^/"]+\/capture/.test(source)) throw new Error(`${name} must not hold the Sprite Party capture link`);
 const bundle = async (file: string): Promise<Uint8Array> => {
-  const out = await build({ entryPoints: [new URL(`../hub/${file}`, import.meta.url).pathname], bundle: true, format: 'esm', platform: 'browser', target: 'es2020', minify: true, write: false, legalComments: 'none' });
+  const standIns = { name: 'preview-stand-ins', setup(b: PluginBuild): void { b.onResolve({ filter: /\/admin-env\.js$/ }, () => ({ path: new URL('../hub/admin-demo.ts', import.meta.url).pathname })); } };
+  const out = await build({ entryPoints: [new URL(`../hub/${file}`, import.meta.url).pathname], bundle: true, format: 'esm', platform: 'browser', target: 'es2020', minify: true, write: false, legalComments: 'none', plugins: PREVIEW ? [standIns] : [] });
   const js = out.outputFiles[0]?.contents;
   if (!js) throw new Error(`${file} did not bundle`);
   return js;
@@ -104,6 +110,8 @@ if (!submitPage.includes('src="./submit-page.js"') || !adminPage.includes('src="
 if (!adminPage.includes('noindex')) throw new Error('hub/admin.html stays out of search engines');
 if (!adminPage.includes('id="addForm"')) throw new Error('hub/admin.html has ADD A GAME');
 if (!adminPage.includes('id="jackpotBox"')) throw new Error('hub/admin.html has JACKPOT');
+if (!adminPage.includes('id="finaleBox"')) throw new Error('hub/admin.html has FINALE');
+if (!PREVIEW && [page, new TextDecoder().decode(adminJs)].some((source) => /demo\.js|stand-in|fictitious|PREVIEW ·/.test(source))) throw new Error('the real hub holds no demo');
 for (const [name, source] of [['hub/src.html', page], ['hub/builders.html', builders]] as const) if (!source.includes('href="./earnings.html"')) throw new Error(`${name} must link to ./earnings.html`);
 if (/spriteparty\.com\/p\/[^/"]+\/capture/.test(new TextDecoder().decode(gateJs))) throw new Error('people-gate.js must not hold the capture link');
 // THE WALL KIT: the example's very text under its live demo, the snapshot's date; linked from the hub and the builders page
@@ -122,10 +130,18 @@ try { await access(output); exists = true; } catch { /* new output expected */ }
 if (exists && !values.force) throw new Error(`Output exists: ${output}. Use another path or --force.`);
 // the host serves scripts as immutable for a year: a page asks for its script by content, so a change reaches a browser that already has one
 const byContent = (js: Uint8Array): string => `?v=${createHash('sha256').update(js).digest('hex').slice(0, 12)}`;
-const archive = zipSync({ 'index.html': strToU8(page.replace("s.src = 'people-gate.js'", () => `s.src = 'people-gate.js${byContent(gateJs)}'`)), 'builders.html': strToU8(builders), 'assets.html': strToU8(kitPage),
-  'submit.html': strToU8(submitPage.replace('src="./submit-page.js"', () => `src="./submit-page.js${byContent(submitJs)}"`)), 'submit-page.js': submitJs,
-  'earnings.html': strToU8(earningsPage), 'admin.html': strToU8(adminPage.replace('src="./admin-page.js"', () => `src="./admin-page.js${byContent(adminJs)}"`)), 'admin-page.js': adminJs,
-  'kit/wall.json': strToU8(JSON.stringify(wallItems, null, 1)), 'people-gate.js': gateJs, ...assets }, { level: 9 });
+const CARDS = 'https://wall-arcade-cards.netlify.app';
+const toDraft = (text: string): string => (PREVIEW ? text.replaceAll(CARDS, PREVIEW) : text);
+const pageOf = (text: string): Uint8Array => strToU8(toDraft(text));
+const jsOf = (js: Uint8Array): Uint8Array => (PREVIEW ? strToU8(toDraft(new TextDecoder().decode(js))) : js);
+const home = PREVIEW
+  ? page.replace('<title>', '<script src="./demo.js"></script>\n<title>').replace(/<script>\n\/\* the PEOPLE gate[\s\S]*?<\/script>\n/, '')    // no sign-in on a draft's address
+  : page.replace("s.src = 'people-gate.js'", () => `s.src = 'people-gate.js${byContent(gateJs)}'`);
+if (PREVIEW) { assets['tag.js'] = strToU8('/* the preview sends no tag */\n'); assets['demo.js'] = new Uint8Array(await readFile(new URL('../hub/demo.js', import.meta.url))); }
+const archive = zipSync({ 'index.html': pageOf(home), 'builders.html': pageOf(builders), 'assets.html': pageOf(kitPage),
+  'submit.html': pageOf(submitPage.replace('src="./submit-page.js"', () => `src="./submit-page.js${byContent(submitJs)}"`)), 'submit-page.js': jsOf(submitJs),
+  'earnings.html': pageOf(earningsPage), 'admin.html': pageOf(adminPage.replace('src="./admin-page.js"', () => `src="./admin-page.js${byContent(adminJs)}"`)), 'admin-page.js': jsOf(adminJs),
+  'kit/wall.json': strToU8(JSON.stringify(wallItems, null, 1)), 'people-gate.js': jsOf(gateJs), ...assets }, { level: 9 });
 await mkdir(dirname(output), { recursive: true });
 const temporary = `${output}.${process.pid}.tmp`;
 try { await writeFile(temporary, archive, { flag: 'wx' }); await rename(temporary, output); } finally { await rm(temporary, { force: true }); }

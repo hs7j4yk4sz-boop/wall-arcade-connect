@@ -405,7 +405,7 @@ export async function startApp(adapter: GameAdapter): Promise<void> {
   }
 
   /* ----------------------------- leaderboard ---------------------------- */
-  // One board: THIS WEEK (Friday 15:00 Lisbon to Friday 15:00), read from Studio with explicit bounds (src/shell/week.ts).
+  // One board: THIS WEEK (Thursday 23:00 Lisbon to Thursday 23:00), read from Studio with explicit bounds (src/shell/week.ts).
   const boardTitle = ui.board.querySelector('.board-title');
   if (boardTitle) boardTitle.textContent = `Top 3 · ${WEEK_LABEL}`;
   const boardEnds = ui.board.querySelector('.board-ends');

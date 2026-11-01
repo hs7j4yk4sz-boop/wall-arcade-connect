@@ -29,22 +29,27 @@ before(async () => {
   if (!CHROME) return;
   browser = await chromium.launch({ executablePath: CHROME, headless: true });
   const html = await readFile(new URL('../hub/src.html', import.meta.url), 'utf8');
-  page$ = `<!doctype html><title>x</title>${/<section class="people"[\s\S]*?<\/section>/.exec(html)![0]}<script src="/people-gate.js"></script>`;
+  page$ = `<!doctype html><title>x</title>${/<div class="welcome"[\s\S]*?<\/div>/.exec(html)![0]}${/<section class="people"[\s\S]*?<\/section>/.exec(html)![0]}<script src="/people-gate.js"></script>`;
   const out = await build({ entryPoints: [new URL('../hub/people-gate.ts', import.meta.url).pathname], bundle: true, format: 'iife', platform: 'browser', write: false });
   gate = out.outputFiles[0]!.text;
 });
 after(() => browser?.close());
 
-type Stage = { context: BrowserContext; page: Page; claimable: boolean };
+type Stage = { context: BrowserContext; page: Page; claimable: boolean; welcomes: { accessToken?: string }[]; answer: string };
 async function stage(device: BrowserContextOptions): Promise<Stage> {
   const context = await browser.newContext(device);
-  const s: Stage = { context, page: null as unknown as Page, claimable: false };
+  const s: Stage = { context, page: null as unknown as Page, claimable: false, welcomes: [], answer: 'granted' };
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
   if (!process.env.GATE_LIVE) await context.route(`${HUB}/**`, (r) => {
     const path = new URL(r.request().url()).pathname;
     return r.fulfill(path === '/people-gate.js' ? { contentType: 'text/javascript', body: gate } : { contentType: 'text/html', body: page$ });
   });
-  await context.route('https://wall-arcade-cards.netlify.app/**', (r) => r.fulfill({ json: [{ panel: 342, name: 'KARP', wallet: WALLET, sprite: null }], headers: cors }));
+  await context.route('https://wall-arcade-cards.netlify.app/**', (r) => {
+    if (!r.request().url().endsWith('/api/welcome')) return r.fulfill({ json: [{ panel: 342, name: 'KARP', wallet: WALLET, sprite: null }], headers: cors });
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: cors });
+    s.welcomes.push(r.request().postDataJSON() as { accessToken?: string });
+    return r.fulfill({ json: { state: s.answer, credits: 5, left: 199 }, headers: cors });
+  });
   await context.route('https://connect.superrare.com/**', (r) => r.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Connect</title>' }));
   await context.route('https://api.superrare.com/**', async (r) => {
     const request = r.request(), path = new URL(request.url()).pathname;
@@ -77,6 +82,20 @@ const away = (page: Page, hidden: boolean) => page.evaluate((h) => {
 }, hidden);
 
 for (const [name, device] of Object.entries(DEVICES)) {
+  test(`${name}: GET 5 FREE PLAYS: the popup, the session, one ask with its token, the answer; a slow profile does not hold it`, { skip: !CHROME || Boolean(process.env.GATE_LIVE) }, async () => {
+    const s = await stage(device);
+    const [popup] = await Promise.all([s.context.waitForEvent('page'), s.page.click('#welcomeClaim')]);
+    s.claimable = true;
+    await popup.close();
+    await s.page.getByText('5 plays are in your wallet').waitFor({ timeout: 6000 });
+    assert.equal(s.welcomes.length, 1);
+    assert.ok(s.welcomes[0]?.accessToken);
+    s.answer = 'known';
+    await s.page.click('#welcomeClaim');                          // signed in: no popup
+    await s.page.getByText('played here before').waitFor({ timeout: 3000 });
+    await s.context.close();
+  });
+
   test(`${name}: the popup closes on success, the profile is slow: ADD YOURSELF with no reload`, { skip: !CHROME }, async () => {
     const s = await stage(device);
     const popup = await signIn(s);

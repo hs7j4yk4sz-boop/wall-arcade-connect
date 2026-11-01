@@ -20,6 +20,7 @@ export type StatsDeps = {
   events: EventStore; people: PeopleStore; pot: PotDeps;
   store: { getText(key: string): Promise<string | null>; set(key: string, value: string): Promise<void> };
   games?: { getText(key: string): Promise<string | null> };     // the store "games": games.json names the games
+  given?(): Promise<number>;                                    // the credits the card service has given
 };
 
 /** The arcade's own games: the key our pages tag them with. Every other app of the group is listed from the group. */
@@ -187,7 +188,7 @@ export async function refreshStats(deps: StatsDeps): Promise<Stats> {
   sources.leaderboards = missing.length ? `none for ${missing.join(', ')}` : 'ok';
 
   const stats = buildStats({
-    now, games, events: events ?? [], usage, packs: (packs ?? []).filter((p) => p.t >= LAUNCH), leaderboards, pot,
+    given: await deps.given?.().catch(() => 0) ?? 0, now, games, events: events ?? [], usage, packs: (packs ?? []).filter((p) => p.t >= LAUNCH), leaderboards, pot,
     holders: new Set((people?.list ?? []).map((p) => p.wallet).filter((w): w is string => typeof w === 'string').map((w) => w.toLowerCase())),
     people: people?.people ?? null, sources,
   });

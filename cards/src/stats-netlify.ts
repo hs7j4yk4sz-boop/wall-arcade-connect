@@ -1,5 +1,6 @@
 // The stats' sources on this site: Netlify Blobs, fetch, the jackpot, and the usage report's token (RARE_PROFILE_TOKEN,
 // a Netlify environment variable, never in the repository).
+import { getStore } from '@netlify/blobs';
 import { gamesStore } from './games-store.js';
 import { peopleStore } from './people-store.js';
 import { treasuryBalance } from './pot.js';
@@ -11,4 +12,5 @@ export const statsDeps = (): StatsDeps => ({
   fetch, now: () => Date.now(), token: process.env.RARE_PROFILE_TOKEN || undefined,
   events: eventStore(), people: peopleStore(), store: statsStore(), games: gamesStore(),
   pot: { store: potStore(), balance: () => treasuryBalance() },
+  given: async () => Number(await getStore({ name: 'jackpot', consistency: 'strong' }).get('granted.json', { type: 'text' })) || 0,
 });

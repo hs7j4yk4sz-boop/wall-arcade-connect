@@ -26,11 +26,13 @@ const line = (plan: ReturnType<typeof buildPlan>, w: string): string => ethOf(pl
 
 test('the weeks: week 1 then Friday to Friday, 15:00 Lisbon', () => {
   assert.deepEqual([WEEK1.n, WEEK1.from, WEEK1.to], [1, '2026-10-21T23:00:00.000Z', '2026-10-30T15:00:00.000Z']);
-  assert.deepEqual(numberedWeek(AFTER), { n: 2, from: '2026-10-30T15:00:00.000Z', to: '2026-11-06T15:00:00.000Z' });
-  assert.equal(numberedWeek(Date.parse('2026-11-06T15:00:00Z')).n, 3);
+  assert.deepEqual(numberedWeek(AFTER), { n: 2, from: '2026-10-30T15:00:00.000Z', to: '2026-11-05T23:00:00.000Z' });
+  assert.equal(numberedWeek(Date.parse('2026-11-05T23:00:00Z')).n, 3);
+  assert.equal(numberedWeek(Date.parse('2026-11-12T23:00:00Z')).n, 4);
+  assert.equal(numberedWeek(Date.parse('2027-04-01T22:00:00Z')).n, 24);     // past a DST change
   assert.deepEqual(closedWeeks(Date.parse('2026-10-30T14:59:59Z')), []);
   assert.deepEqual(closedWeeks(Date.parse('2026-10-30T15:00:00Z')).map((w) => w.n), [1]);
-  assert.deepEqual(closedWeeks(Date.parse('2026-11-13T14:00:00Z')).map((w) => w.n), [1, 2]);
+  assert.deepEqual(closedWeeks(Date.parse('2026-11-12T22:00:00Z')).map((w) => w.n), [1, 2]);
 });
 
 test('week 1: 154 credits, 0.0154 ETH, 0x77d3…92e2 0.00445, heast.eth 0.00325, the artists 40%, our games to the wall', () => {
