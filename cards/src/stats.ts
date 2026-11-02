@@ -2,13 +2,14 @@
 // (cards/src/stats-sources.ts) and summed here, for three windows: today (Lisbon day), this week (Thursday 23:00 Lisbon to
 // Thursday 23:00) and since the launch (Tuesday 27 October 2026, 14:00 Lisbon).
 // Plays started and completed are SuperRare's own report (credit-group usage) when it can be read; free versus paid is
-// ours: a holder's first 3 paid starts of a week are free (the 3 credits granted each week), the rest are paid, and a
-// non-holder's are all paid (no grant). It needs plays per wallet, so it comes from our tags (cards/src/events.ts).
+// ours: a holder's first 3 paid starts of a week are free (the 3 credits granted each week), a new wallet's first 5 after its
+// welcome are free (the hub's 5 free plays, once), the rest are paid. It needs plays per wallet, so it comes from our tags (cards/src/events.ts).
 import type { ArcadeEvent } from './events.js';
 import { lisbonWeek } from './week.js';
 
 export const LAUNCH = Date.parse('2026-10-27T14:00:00Z');          // 14:00 Lisbon (winter time since 25 October)
 export const FREE_PER_WEEK = 3;
+export const WELCOME_FREE = 5;                                     // GET 5 FREE PLAYS, once a wallet (cards/src/credits-service.ts)
 export const GRANTED_WALLETS = 190;                                // the grant of 3 credits a week: 190 wallets × 3
 export const PACK_PLAYS = 50;
 /** A game of the credit group: its app id, its name, its origin; `tag` is the key our own pages tag it with (events'
@@ -29,6 +30,7 @@ export type StatsInputs = {
   leaderboards: Record<string, Partial<Record<WindowKey, LeaderRow[]>>>;   // by app id
   pot: string | null;
   given?: number;                                                  // credits given by the card service since (cards/src/credits-service.ts)
+  welcomed?: Record<string, number>;                               // the wallets given their 5 free plays, and when
   people: { names: number; withSprite: number; unmatched: number; lastSpriteAt: string | null; mirrored: Record<string, string> } | null;
   sources: Record<string, string>;
 };
@@ -74,13 +76,18 @@ export function paidStarts(events: ArcadeEvent[]): ArcadeEvent[] {
     seen.add(run); return true;
   });
 }
-/** Each paid start, free or paid: a holder's first FREE_PER_WEEK of a week (Thursday 23:00 Lisbon) are free. A start with
- *  no wallet is left unclassified. */
-export function classify(starts: ArcadeEvent[], holders: Set<string>): { event: ArcadeEvent; kind: 'free' | 'paid' | 'unknown' }[] {
+/** Each paid start, free or paid: a holder's first FREE_PER_WEEK of a week (Thursday 23:00 Lisbon) are free, and a welcomed
+ *  wallet's first WELCOME_FREE from its welcome on. A start with no wallet is left unclassified. */
+export function classify(starts: ArcadeEvent[], holders: Set<string>, welcomed: Record<string, number> = {}): { event: ArcadeEvent; kind: 'free' | 'paid' | 'unknown' }[] {
   const used = new Map<string, number>();
   return [...starts].sort((a, b) => a.t - b.t).map((event) => {
     if (!event.w) return { event, kind: 'unknown' as const };
-    if (!holders.has(event.w)) return { event, kind: 'paid' as const };
+    if (!holders.has(event.w)) {
+      const at = welcomed[event.w], n = used.get(event.w) ?? 0;
+      if (at === undefined || event.t < at || n >= WELCOME_FREE) return { event, kind: 'paid' as const };
+      used.set(event.w, n + 1);
+      return { event, kind: 'free' as const };
+    }
     const key = `${event.w}|${lisbonWeek(event.t).from}`, n = used.get(key) ?? 0;
     used.set(key, n + 1);
     return { event, kind: n < FREE_PER_WEEK ? 'free' as const : 'paid' as const };
@@ -119,7 +126,7 @@ export function buildStats(input: StatsInputs) {
   const { now, events, holders } = input;
   const wins = windows(now);
   const starts = paidStarts(events);
-  const kinds = classify(starts, holders);
+  const kinds = classify(starts, holders, input.welcomed);
   const firstSeen = new Map<string, number>(), daysSeen = new Map<string, Set<string>>();
   for (const e of [...events].sort((a, b) => a.t - b.t)) {
     if (!e.w || !ACTIVE.has(e.e) || e.t < LAUNCH) continue;

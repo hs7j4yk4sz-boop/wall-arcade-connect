@@ -85,7 +85,7 @@ new IntersectionObserver((entries, observer) => {
 const claim = $<HTMLButtonElement>('welcomeClaim'), said = $('welcomeSaid');
 const answers: Record<string, string> = {
   granted: '5 plays are in your wallet. Pick a game: each one starts with your consent.', already: 'This wallet already has its 5 free plays.',
-  known: 'This wallet has played here before: the 5 free plays are for new wallets.', full: 'This week\'s 200 wallets are in. Come back after Thursday 23:00 Lisbon.',
+  known: 'This wallet has played here before: the 5 free plays are for new wallets.', full: 'This week\'s 100 wallets are in. Come back after Thursday 23:00 Lisbon.',
 };
 claim.addEventListener('click', async () => {
   claim.disabled = true; said.textContent = 'SuperRare Connect is open in a popup.';

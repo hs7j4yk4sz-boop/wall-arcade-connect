@@ -13,7 +13,7 @@ const CHROME = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Conten
 const HUB = 'https://thewallarcade.superrare.com', DRAFT = 'https://finale--wall-arcade-cards.netlify.app';
 const GAME = { slug: 'gate-rush', title: 'GATE RUSH', artist: 'K4NCUN0', origin: 'https://f523stv7.srstudio.dev' };
 const row = (rank: number): unknown => ({ rank, name: `<b>p${rank}</b>`, score: 1000 - rank, eth: '0.02' });
-const doc = (plays: number, finale: Record<string, unknown>): unknown => ({ updatedAt: 'x', week: { n: 3 }, plays, finaleEth: '0.1000', addEth: (plays * 5 / 1e5).toFixed(5), welcomeLeft: 200, finale: { n: 3, from: new Date(Date.now() + 864e5).toISOString(), to: new Date(Date.now() + 9e7).toISOString(), game: GAME, places: 5, eachEth: '0.02', top: [], next: null, ...finale } });
+const doc = (plays: number, finale: Record<string, unknown>): unknown => ({ updatedAt: 'x', week: { n: 3 }, plays, finaleEth: '0.1000', addEth: (plays * 5 / 1e5).toFixed(5), welcomeLeft: 100, finale: { n: 3, from: new Date(Date.now() + 864e5).toISOString(), to: new Date(Date.now() + 9e7).toISOString(), game: GAME, places: 5, prizesEth: ['0.04', '0.025', '0.015', '0.012', '0.008'], top: [], next: null, ...finale } });
 
 function built(preview: boolean): Record<string, Uint8Array> {
   const out = join(mkdtempSync(join(tmpdir(), 'hub-')), 'hub.zip');

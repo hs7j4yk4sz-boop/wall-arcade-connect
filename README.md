@@ -148,12 +148,12 @@ checks against GitHub's keys (`cards/src/clip-upload.ts`: this repository, main,
 nothing, the still stays, and the next night tries again.
 
 **THE FINALE:** each week from week 2, one artist's game has its last seven hours, Thursday 16:00 to 23:00 Lisbon: 0.1 ETH from
-NFC to the top 5 of those hours, 0.02 ETH each, the artist out of their own prizes. The admin page picks the game
+NFC to the top 5 of those hours, 0.04 / 0.025 / 0.015 / 0.012 / 0.008 ETH, the artist out of their own prizes. The admin page picks the game
 (`cards/src/finale.ts`), the hub's first block and its prizes counter read `/finale.json`, and the winners go out with the week
 in PAY's one send, from the treasury, which must hold that 0.1 ETH.
 
 **THE FREE CREDITS** (`cards/src/credits-service.ts`): 3 to each wallet holding a name, every Friday from 00:00 Lisbon, 25 grants
-per pass; 5 to a new wallet, once, from the hub's GET 5 FREE PLAYS, 200 wallets a week.
+per pass; 5 to a new wallet, once, from the hub's GET 5 FREE PLAYS, 100 wallets a week.
 
 **A preview:** `cards/scripts/deploy-draft.sh [alias]` puts the hub on a Netlify draft of the card service, no `--prod`, no
 `rare-profile`. Blobs are shared by every deploy of a site, so a draft holds only `cards/netlify/draft-functions` (read-only) and
@@ -168,7 +168,9 @@ artist wallet: the week says so). PAY builds one Disperse call (`0xD152f54954509
 `cards/src/disperse.ts`) for the wallet in the browser, with a line for the wall's NFC address typed there. It is live
 only for the treasury, on mainnet, with a balance that covers the week. No key on the service: the treasury signs. The
 hash is recorded at once, so a send on its way cannot be doubled, and the service marks the week paid only from the
-chain: a mined transaction from the treasury to Disperse with exactly the week's lines plus the wall's. The admin wallets
+chain: a mined transaction from the treasury to Disperse with exactly the week's lines plus the wall's. MARK PAID (manual)
+records a week paid by hand with its hashes, each mined and successful; PAY is then off for it. Week 1 was paid by hand
+on 31 October and never offers PAY. The admin wallets
 are `ADMINS` in `cards/src/submit-netlify.ts` (johnkarp.eth and the treasury), and `ADMIN_WALLET` adds others.
 
 **Earnings, in public:** `earnings.html` on the hub, linked from the JACKPOT band and the builders page, reads

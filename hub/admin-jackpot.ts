@@ -3,16 +3,18 @@
 // live only for the treasury, on mainnet, with a balance that covers the week and the wall's address typed. Just before
 // sending it asks the service again whether the week is still due, and has the wallet simulate the call; the hash goes to
 // the service at once, so a week with a send on its way cannot be paid twice; the service marks it paid from the chain.
+// MARK PAID records a week paid by hand, with its hashes. Week 1 was paid by hand: it never offers PAY.
 import { DISPERSE, encodeDisperse } from '../cards/src/disperse.js';
 import { ethOf, type GameShare, type PayLine, type PlanFinale } from '../cards/src/jackpot.js';
 
 type Plan = { n: number; from: string; to: string; credits: number; totalWei: string; games: GameShare[]; lines: PayLine[]; wallWei: string; sendWei: string; heldWei: string; held: string[]; finale?: PlanFinale };
-type WeekRecord = { plan: Plan; status: 'due' | 'sent' | 'paid'; hash?: string; wall?: string; sentAt?: string; paidAt?: string; note?: string };
+type WeekRecord = { plan: Plan; status: 'due' | 'sent' | 'paid'; hash?: string; wall?: string; sentAt?: string; paidAt?: string; note?: string; manual?: true; hashes?: string[] };
 type WeekView = WeekRecord | { n: number; error: string };
 type Answer = { code: number; data: { weeks?: WeekView[]; treasury?: string; error?: string } };
 export type Eip1193 = { request(args: { method: string; params?: unknown[] }): Promise<unknown>; on?(event: string, listener: () => void): void };
 export type Mount = { wallet?: Eip1193; call(body: Record<string, unknown>): Promise<Answer>; el: <K extends keyof HTMLElementTagNameMap>(tag: K, attrs?: Record<string, string>, text?: string) => HTMLElementTagNameMap[K] };
 
+const BY_HAND = new Set([1]);                                    // weeks paid by hand only: no PAY
 const ETHERSCAN = 'https://etherscan.io/tx/', WALL_KEY = 'wall-address', MAINNET = '0x1', ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const remembered = (): string => { try { return localStorage.getItem(WALL_KEY) ?? ''; } catch { return ''; } };
 const remember = (v: string): void => { try { localStorage.setItem(WALL_KEY, v); } catch { /* it is only a convenience */ } };
@@ -52,6 +54,7 @@ export function mountJackpot({ wallet: standIn, call, el }: Mount): { load(): Pr
   /** Why PAY is off for this week; null when it is live. */
   function blocked(week: WeekRecord, wall: string): string | null {
     if (week.status !== 'due') return 'A payment went out for this week.';
+    if (BY_HAND.has(week.plan.n)) return `Week ${week.plan.n} is paid by hand: MARK PAID.`;
     if (BigInt(week.plan.sendWei) === 0n) return 'Nothing to pay this week.';
     if (!provider()) return 'No wallet in this browser.';
     if (!account) return 'Connect the treasury\'s wallet.';
@@ -110,7 +113,7 @@ export function mountJackpot({ wallet: standIn, call, el }: Mount): { load(): Pr
   function weekCard(week: WeekRecord): HTMLElement {
     const { plan } = week, card = el('div', { class: 'week', id: `week-${plan.n}` });
     card.append(el('h3', {}, `Week ${plan.n}: ${plan.credits} credits, ${ethOf(plan.totalWei)} ETH${plan.finale ? ` + the finale's ${ethOf(plan.finale.wei)}` : ''}`),
-      el('p', { class: 'meta' }, `${day(plan.from)} to ${day(plan.to)} · ${week.status === 'paid' ? `paid ${day(week.paidAt ?? '')}` : week.status === 'sent' ? 'sent, not confirmed' : 'to pay'}`));
+      el('p', { class: 'meta' }, `${day(plan.from)} to ${day(plan.to)} · ${week.status === 'paid' ? `paid${week.manual ? ' by hand' : ''} ${day(week.paidAt ?? '')}` : week.status === 'sent' ? 'sent, not confirmed' : 'to pay'}`));
     if (plan.games.length) card.append(table(plan));
     if (plan.finale) card.append(el('p', { class: 'meta' }, `Finale: ${plan.finale.title} by ${plan.finale.artist}, ${plan.finale.winners.length} of 5 places, ${ethOf(plan.finale.wei)} ETH from NFC. ${plan.finale.winners.map((w) => `#${w.rank} ${w.name} ${w.score}`).join(' · ')}`));
     for (const h of plan.held) card.append(el('p', { class: 'meta warn' }, h));
@@ -123,6 +126,10 @@ export function mountJackpot({ wallet: standIn, call, el }: Mount): { load(): Pr
       const link = el('a', { href: `${ETHERSCAN}${week.hash}`, target: '_blank', rel: 'noopener', class: 'meta' }, week.hash);
       card.append(el('p', { class: 'meta' }, week.status === 'paid' ? `The wall: ${ethOf(plan.wallWei)} ETH → ${week.wall}. Hash:` : 'Hash:'), link);
     }
+    if (week.hashes?.length) {
+      card.append(el('p', { class: 'meta' }, `Paid by hand, ${week.hashes.length} transaction${week.hashes.length > 1 ? 's' : ''}:`));
+      for (const h of week.hashes) card.append(el('a', { href: `${ETHERSCAN}${h}`, target: '_blank', rel: 'noopener', class: 'meta hashline' }, h));
+    }
     if (week.status === 'sent') {
       const again = el('button', { class: 'btn', type: 'button' }, 'Check again'), forget = el('button', { class: 'btn', type: 'button' }, 'Forget this send');
       again.addEventListener('click', () => void apply({ action: 'jackpot-paid', week: plan.n, hash: week.hash }));
@@ -131,7 +138,7 @@ export function mountJackpot({ wallet: standIn, call, el }: Mount): { load(): Pr
       acts.append(again, forget);
       card.append(acts);
     }
-    if (week.status === 'due') {
+    if (week.status === 'due' && !BY_HAND.has(plan.n)) {
       const line = el('label', {}, `The wall: ${ethOf(plan.wallWei)} ETH to the NFC address`), wall = el('input', { autocomplete: 'off', spellcheck: 'false', placeholder: '0x…', class: 'wall-address' });
       wall.value = remembered(); line.append(wall);
       const total = el('p', { class: 'meta' }, `One send of ${ethOf(plan.sendWei)} ETH, ${plan.lines.length + 1} lines, through Disperse (${DISPERSE}).${BigInt(plan.heldWei) > 0n ? ` ${ethOf(plan.heldWei)} ETH stays in the treasury.` : ''}`);
@@ -148,7 +155,21 @@ export function mountJackpot({ wallet: standIn, call, el }: Mount): { load(): Pr
       card.append(line, total, acts, why, paste);
       check();
     }
+    if (week.status === 'due') card.append(markPaid(plan.n));
     return card;
+  }
+
+  /** MARK PAID (manual): the week was paid outside PAY; the service checks each hash is mined and successful. */
+  function markPaid(n: number): HTMLElement {
+    const form = el('form', { class: 'manual' }), hashes = el('textarea', { rows: '3', spellcheck: 'false', placeholder: '0x… one hash per line', 'aria-label': 'The hashes of the payments made by hand' });
+    const note = el('input', { autocomplete: 'off', placeholder: 'Note (who, how much)', 'aria-label': 'Note' });
+    form.append(el('p', { class: 'meta' }, BY_HAND.has(n) ? `Week ${n} is paid by hand, never with PAY.` : 'Paid outside PAY? Record it here.'), hashes, note, el('button', { class: 'btn', type: 'submit' }, 'Mark paid (manual)'));
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const list = hashes.value.split(/[\s,]+/).filter(Boolean);
+      if (confirm(`Mark week ${n} paid by hand with ${list.length} hash${list.length > 1 ? 'es' : ''}? PAY will be off for it for good.`)) void apply({ action: 'jackpot-manual', week: n, hashes: list, note: note.value.trim() });
+    });
+    return form;
   }
 
   function draw(): void {

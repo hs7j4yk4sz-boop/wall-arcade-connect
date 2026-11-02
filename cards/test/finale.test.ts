@@ -24,13 +24,14 @@ test('the seven hours: Thursday 16:00 to 23:00 Lisbon, in winter and in summer; 
   assert.equal(finaleWindow(numberedWeek(Date.parse('2026-10-25T12:00:00Z'))), null);
 });
 
-test('the top 5: the artist is out, the sixth comes up, each place 0.02 ETH', () => {
+test('the top 5: the artist is out, the sixth comes up, 0.04 / 0.025 / 0.015 / 0.012 / 0.008 ETH', () => {
   const top = topFive(board, ARTIST);
   assert.deepEqual(top.map((w) => w.wallet), [1, 2, 3, 4, 5].map(wallet));
   assert.deepEqual(top.map((w) => w.rank), [1, 2, 3, 4, 5]);
   assert.equal(top[0]?.name, 'one.eth');
   assert.equal(top[1]?.name, '0x0202…0202');
-  assert.ok(top.every((w) => ethOf(w.wei) === '0.02'));
+  assert.deepEqual(top.map((w) => ethOf(w.wei)), ['0.04', '0.025', '0.015', '0.012', '0.008']);
+  assert.equal(top.reduce((s, w) => s + BigInt(w.wei), 0n), FINALE_WEI);
   assert.equal(topFive([{ player: { kind: 'guest', id: 'x' }, score: '1' }, entry(9, 2)], ARTIST.toUpperCase().replace('0X', '0x')).length, 0);
 });
 
@@ -63,7 +64,7 @@ test('the plan: the finale in the week\'s lines, one line for a winner of both, 
   const plan = finalePlan();
   assert.equal(ethOf(plan.totalWei), '0.01');               // the credits alone
   const one = plan.lines.find((l) => l.wallet === wallet(1));
-  assert.equal(ethOf(one?.wei ?? '0'), '0.025');            // 0.02 + the game's best score, 0.005
+  assert.equal(ethOf(one?.wei ?? '0'), '0.045');            // 0.04 + the game's best score, 0.005
   assert.deepEqual(one?.for, ['GATE RUSH: best score', 'Finale, GATE RUSH: #1']);
   assert.equal(ethOf(plan.sendWei), '0.11');
   assert.equal(plan.lines.length, 6);                       // five winners, the artist
@@ -72,9 +73,9 @@ test('the plan: the finale in the week\'s lines, one line for a winner of both, 
 
 test('a place nobody took stays in the treasury and is said', () => {
   const plan = finalePlan(topFive(board.slice(0, 3), ARTIST));
-  assert.equal(ethOf(plan.sendWei), '0.05');                // two winners, 0.01 of credits
-  assert.equal(ethOf(plan.heldWei), '0.06');
-  assert.match(plan.held.join(), /Finale: 0.06 ETH with no winner/);
+  assert.equal(ethOf(plan.sendWei), '0.075');               // two winners, 0.04 + 0.025, and 0.01 of credits
+  assert.equal(ethOf(plan.heldWei), '0.035');
+  assert.match(plan.held.join(), /Finale: 0.035 ETH with no winner/);
 });
 
 function stand(now: number, rpc: JackpotDeps['rpc'] = async () => null): JackpotDeps & { map: Map<string, string>; asked: string[] } {
@@ -112,7 +113,7 @@ test('/finale.json before: the week\'s plays and X, the game picked, no board re
   deps.map.set('welcome-week-3.json', '29');
   deps.map.set('finale-2.json', 'null');
   const d = await live(deps);
-  assert.deepEqual([d.plays, d.finaleEth, d.addEth, d.welcomeLeft], [3, '0.1000', '0.00015', 171]);
+  assert.deepEqual([d.plays, d.finaleEth, d.addEth, d.welcomeLeft], [3, '0.1000', '0.00015', 71]);
   assert.equal(d.finale.state, 'before');
   assert.equal(d.finale.game?.title, 'GATE RUSH');
   assert.equal(d.finale.from, '2026-11-12T16:00:00.000Z');
@@ -125,7 +126,7 @@ test('/finale.json live: the board of the seven hours only, the artist out', asy
   deps.map.set('finale-3.json', JSON.stringify(PICK));
   const d = await live(deps);
   assert.equal(d.finale.state, 'live');
-  assert.deepEqual(d.finale.top.map((r) => [r.rank, r.name, r.eth]).slice(0, 2), [[1, 'one.eth', '0.02'], [2, '0x0202…0202', '0.02']]);
+  assert.deepEqual(d.finale.top.map((r) => [r.rank, r.name, r.eth]).slice(0, 2), [[1, 'one.eth', '0.04'], [2, '0x0202…0202', '0.025']]);
   assert.match(deps.asked[0] as string, /from=2026-11-12T16%3A00%3A00.000Z&to=2026-11-12T23%3A00%3A00.000Z/);
 });
 

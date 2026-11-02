@@ -162,6 +162,21 @@ test('one hash pays one week; a week still open or unknown is refused', async ()
   assert.equal((await paid(deps, 'nope')).status, 400);
 });
 
+test('MARK PAID: a week paid by hand, each hash mined and successful; then no PAY', async () => {
+  const h = (i: number): string => `0x${String(i).repeat(64)}`;
+  const failed = stand(async (_m, p) => ((p as string[])[0] === h(2) ? { status: '0x0' } : { status: '0x1' })); seedWeek(failed);
+  const no = await adminJackpot(failed, { action: 'jackpot-manual', week: 1, hashes: [h(1), h(2)] }, 'admin');
+  assert.equal(no.status, 400); assert.equal(record(failed).status, 'due');
+  assert.equal((await adminJackpot(failed, { action: 'jackpot-manual', week: 1, hashes: ['nope'] }, 'admin')).status, 400);
+  const deps = stand(async () => ({ status: '0x1' })); seedWeek(deps);
+  assert.equal((await adminJackpot(deps, { action: 'jackpot-manual', week: 1, hashes: [h(1), ` ${h(3).toUpperCase().replace('0X', '0x')} `, h(1)], note: 'by hand, 31/10' }, 'admin')).status, 200);
+  assert.deepEqual([record(deps).status, record(deps).manual, record(deps).hashes, record(deps).note], ['paid', true, [h(1), h(3)], 'by hand, 31/10']);
+  assert.equal((await paid(deps)).status, 409);
+  assert.equal((await adminJackpot(deps, { action: 'jackpot-manual', week: 1, hashes: [h(4)] }, 'admin')).status, 409);
+  const sent = stand(async () => ({ status: '0x1' })); seedWeek(sent, { status: 'sent', hash: HASH });
+  assert.equal((await adminJackpot(sent, { action: 'jackpot-manual', week: 1, hashes: [h(1)] }, 'admin')).status, 409);
+});
+
 test('with no report the week is not kept, the page says why, and the last earnings stay', async () => {
   const deps = stand();
   const r = await adminJackpot(deps, { action: 'jackpot' }, 'admin');

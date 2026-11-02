@@ -7,7 +7,7 @@
 //     balance to read, so a holder who did not play has 6 the next week.
 //     known-wallets.json: the wallets the arcade has already seen (holders, pack buyers, our tags).
 //   POST /api/welcome  { accessToken }: the hub's GET 5 FREE PLAYS. The session is checked with SuperRare. 5 credits, once a
-//     wallet, for a new wallet, 200 wallets a week. From the arcade's pages only (CORS, cards/src/group.ts).
+//     wallet, for a new wallet, 100 wallets a week. From the arcade's pages only (CORS, cards/src/group.ts).
 import { WELCOME_CAP, welcomeKey } from './jackpot-service.js';
 import { numberedWeek } from './jackpot.js';
 
@@ -69,6 +69,8 @@ export async function welcome(deps: CreditDeps, wallet: string): Promise<Welcome
   await deps.grant({ address, credits: WELCOME_CREDITS, idempotencyKey: `wall-welcome-${address}`, reason: 'THE WALL ARCADE: 5 free plays for a new wallet' });
   await deps.store.set(mine, JSON.stringify({ at: new Date(deps.now()).toISOString(), week: week.n }));
   await deps.store.set(cap, String(count + 1));
+  const welcomed = JSON.parse((await deps.store.getText('welcomed.json')) ?? '{}') as Record<string, string>;
+  await deps.store.set('welcomed.json', JSON.stringify({ ...welcomed, [address]: new Date(deps.now()).toISOString() }));   // for /stats: free plays
   await addGiven(deps, WELCOME_CREDITS);
   return { state: 'granted', credits: WELCOME_CREDITS, left: left - 1 };
 }

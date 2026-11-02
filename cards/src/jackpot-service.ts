@@ -5,19 +5,20 @@
 //   GET  /finale.json         the hub's live document, read from the sources: the plays of the week and the FINALE block
 //   POST /api/admin           jackpot: the weeks; jackpot-recompute: a week not sent yet, again; jackpot-paid: the hash of
 //                             the payment; jackpot-clear: forget a send that never went through; finale: the weeks to
-//                             come and the games to pick from; finale-pick: a week's game, until its finale starts
+//                             come and the games to pick from; finale-pick: a week's game, until its finale starts;
+//                             jackpot-manual: a week paid by hand, its hashes (each mined and successful), no PAY after
 // No key here: the treasury signs in the admin page, in its own wallet. The service only reads the chain: a week is paid when
 // a mined transaction from the treasury to Disperse carries exactly its lines, plus one line of its wall amount (that line's
-// address is the wall's, typed in the page). A week with a hash cannot be paid again.
+// address is the wall's, typed in the page). A week with a hash, or marked paid by hand, cannot be paid again.
 import { decodeDisperse, DISPERSE } from './disperse.js';
 import { readGames, WALLET, type Game, type GamesStore } from './games.js';
-import { candidates, FINALE_WEI, finaleStage, finaleWindow, PLACES, PLACE_WEI, playsEth, rowsOf, topFive, type Entry, type FinalePick, type FinaleRow, type Winner } from './finale.js';
+import { candidates, FINALE_WEI, finaleStage, finaleWindow, PLACES, PRIZES_WEI, playsEth, rowsOf, topFive, type Entry, type FinalePick, type FinaleRow, type Winner } from './finale.js';
 import { buildPlan, closedWeeks, earningsOf, ethOf, numberedWeek, shortWallet, type Best, type NumberedWeek, type Plan } from './jackpot.js';
 import { TREASURY } from './pot.js';
 import { clientOf, usageOf } from './stats-sources.js';
 
 
-export type WeekRecord = { plan: Plan; status: 'due' | 'sent' | 'paid'; computedAt: string; hash?: string; wall?: string; by?: string; sentAt?: string; paidAt?: string; note?: string };
+export type WeekRecord = { plan: Plan; status: 'due' | 'sent' | 'paid'; computedAt: string; hash?: string; wall?: string; by?: string; sentAt?: string; paidAt?: string; note?: string; manual?: true; hashes?: string[] };
 export type JackpotDeps = {
   fetch: typeof fetch; now(): number; token: string | undefined;
   store: { getText(key: string): Promise<string | null>; set(key: string, value: string): Promise<void> };
@@ -109,10 +110,10 @@ export async function handleEarnings(deps: JackpotDeps): Promise<Response> {
 }
 
 export type LiveGame = { slug: string; title: string; artist: string; origin: string };
-export type LiveFinale = { state: 'before' | 'live' | 'after'; n: number; from: string; to: string; game: LiveGame | null; places: number; eachEth: string; top: FinaleRow[]; next: { from: string; to: string; game: LiveGame | null } | null };
+export type LiveFinale = { state: 'before' | 'live' | 'after'; n: number; from: string; to: string; game: LiveGame | null; places: number; prizesEth: string[]; top: FinaleRow[]; next: { from: string; to: string; game: LiveGame | null } | null };
 export type LiveDoc = { updatedAt: string; week: NumberedWeek; plays: number; finaleEth: string; addEth: string; finale: LiveFinale; welcomeLeft: number };
 const gameOf = (pick: FinalePick | null): LiveGame | null => (pick ? { slug: pick.slug, title: pick.title, artist: pick.artist, origin: pick.origin } : null);
-export const WELCOME_CAP = 200;                                 // new wallets a week (cards/src/credits-service.ts)
+export const WELCOME_CAP = 100;                                 // new wallets a week (cards/src/credits-service.ts)
 export const welcomeKey = (n: number): string => `welcome-week-${n}.json`;
 
 /** The hub's document, from the sources: the week's plays (credits played, SuperRare's usage report) and the FINALE block. */
@@ -133,7 +134,7 @@ async function readLive(deps: JackpotDeps): Promise<LiveDoc> {
   const coming = finaleWindow(week);
   return {
     updatedAt: new Date(now).toISOString(), week, plays, finaleEth: '0.1000', addEth: playsEth(plays), welcomeLeft: Math.max(0, WELCOME_CAP - (Number(count) || 0)),
-    finale: { state: stage, n: shown.n, ...window, game: gameOf(chosen), places: PLACES, eachEth: ethOf(PLACE_WEI), top, next: stage === 'after' && coming ? { ...coming, game: gameOf(pick) } : null },
+    finale: { state: stage, n: shown.n, ...window, game: gameOf(chosen), places: PLACES, prizesEth: PRIZES_WEI.map(ethOf), top, next: stage === 'after' && coming ? { ...coming, game: gameOf(pick) } : null },
   };
 }
 
@@ -200,6 +201,21 @@ export async function readPayment(deps: Pick<JackpotDeps, 'rpc'>, plan: Plan, ha
   return { state: 'paid', wall: wall.wallet };
 }
 
+/** MARK PAID: a week paid by hand, outside PAY. Each hash must be a mined, successful transaction; the amounts are the admin's. */
+async function markManual(deps: JackpotDeps, record: WeekRecord, body: Record<string, unknown>, admin: string, done: () => Promise<{ status: number; body: unknown }>): Promise<{ status: number; body: unknown }> {
+  if (record.status === 'sent') return { status: 409, body: { error: 'A PAY is on its way for this week: wait for it, or forget it first.' } };
+  const hashes = [...new Set((Array.isArray(body.hashes) ? body.hashes : []).map((h) => String(h).trim().toLowerCase()).filter(Boolean))];
+  if (!hashes.length || hashes.length > 20 || !hashes.every((h) => /^0x[0-9a-f]{64}$/.test(h))) return { status: 400, body: { error: 'hashes: 1 to 20, each 0x and 64 hex digits' } };
+  for (const hash of hashes) {
+    let receipt: Receipt | null;
+    try { receipt = await deps.rpc('eth_getTransactionReceipt', [hash]) as Receipt | null; } catch { return { status: 502, body: { error: 'The chain cannot be read right now. Nothing changed: try again.' } }; }
+    if (receipt?.status !== '0x1') return { status: 400, body: { error: `${hash.slice(0, 10)}…: ${receipt ? 'reverted' : 'not mined'}. Nothing changed.` } };
+  }
+  const note = typeof body.note === 'string' ? body.note.trim().slice(0, 300) : '';
+  await saveWeek(deps, { ...record, status: 'paid', manual: true, hashes, by: admin, paidAt: new Date(deps.now()).toISOString(), ...(note ? { note } : {}) });
+  return done();
+}
+
 /** The admin page's jackpot actions. */
 export async function adminJackpot(deps: JackpotDeps, body: Record<string, unknown>, admin: string): Promise<{ status: number; body: unknown }> {
   const done = async (): Promise<{ status: number; body: unknown }> => ({ status: 200, body: { ok: true, weeks: await allWeeks(deps), treasury: TREASURY, disperse: DISPERSE } });
@@ -215,10 +231,11 @@ export async function adminJackpot(deps: JackpotDeps, body: Record<string, unkno
   }
   if (!record) return { status: 404, body: { error: 'This week has not been calculated yet.' } };
   if (record.status === 'paid') return { status: 409, body: { error: 'This week is already paid.' } };
+  if (body.action === 'jackpot-manual') return markManual(deps, record, body, admin, done);
   const hash = body.action === 'jackpot-clear' ? record.hash ?? '' : typeof body.hash === 'string' ? body.hash.trim().toLowerCase() : '';
   if (!/^0x[0-9a-f]{64}$/.test(hash)) return { status: 400, body: { error: 'hash: 0x and 64 hex digits' } };
   const others = await Promise.all(closedWeeks(deps.now()).filter((w) => w.n !== week.n).map((w) => readWeek(deps, w.n)));
-  if (others.some((r) => r?.hash === hash)) return { status: 409, body: { error: 'This hash already paid another week.' } };
+  if (others.some((r) => r?.hash === hash || r?.hashes?.includes(hash))) return { status: 409, body: { error: 'This hash already paid another week.' } };
   let payment: Payment;
   try { payment = await readPayment(deps, record.plan, hash); } catch { return { status: 502, body: { error: 'The chain cannot be read right now. Nothing changed: try again.' } }; }
   if (body.action === 'jackpot-clear') {

@@ -39,6 +39,14 @@ test('free versus paid: a holder\'s first 3 paid starts of the week are free, th
   assert.deepEqual(kinds.map((k) => `${k.event.x?.run ?? '-'}:${k.kind}`), ['r1:free', 'r2:free', 'r5:paid', '-:unknown', 'r3:free', 'r4:paid', 'r6:free']);
 });
 
+test('a welcomed wallet: its first 5 starts from the welcome on are free, the 6th is paid, before it all paid', () => {
+  const start = (w: string, iso: string, run: string): ArcadeEvent => ({ t: at(iso), e: 'paid_start', g: 'full-row', w, x: { run } });
+  const runs = ['w0', 'w1', 'w2', 'w3', 'w4', 'w5', 'w6'];
+  const events = runs.map((r, i) => start(OTHER, new Date(at('2026-11-06T10:00:00Z') + i * 60_000).toISOString(), r));
+  const kinds = classify(paidStarts(events), new Set([HOLDER]), { [OTHER]: at('2026-11-06T10:00:30Z') });
+  assert.deepEqual(kinds.map((k) => `${k.event.x?.run}:${k.kind}`), ['w0:paid', 'w1:free', 'w2:free', 'w3:free', 'w4:free', 'w5:free', 'w6:paid']);
+});
+
 test('events: checked, stamped, one blob each, folded into the day\'s file once', async () => {
   assert.throws(() => parseEvent({ event: 'card_view' }, 0), /unknown event/);         // the service's own events
   assert.throws(() => parseEvent({ event: 'hub_view', cookie: 'x' }, 0), /unexpected field cookie/);

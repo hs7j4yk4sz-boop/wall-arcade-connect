@@ -459,7 +459,7 @@ function drawFinale(f) {
   plainText('fGame', name);
   plainText('fBy', f.game ? 'by ' + f.game.artist : 'One artist\'s game, every Thursday');
   plainText('fWhat', f.state === 'after' ? '0.1 ETH from NFC to the top 5 of the seven hours.' + (f.next ? ' Next Finale: ' + (f.next.game ? f.next.game.title + ', ' : '') + lisbonDay(f.next.from) + ', 16:00 Lisbon.' : '')
-    : '0.1 ETH from NFC, ' + f.eachEth + ' ETH each to the top ' + f.places + ' scores made in those seven hours. 1 credit a play. Practice is free. The artist can\'t win on their own game.');
+    : '0.1 ETH from NFC to the top ' + f.places + ' scores made in those seven hours: ' + (f.prizesEth || []).join(' · ') + ' ETH. 1 credit a play. Practice is free. The artist can\'t win on their own game.');
   var game = f.state === 'after' ? (f.next && f.next.game) : f.game;
   play.hidden = !game;
   if (game) { play.href = game.origin + '/'; play.textContent = f.state === 'live' ? 'PLAY THE FINALE →' : 'PRACTICE NOW →'; }

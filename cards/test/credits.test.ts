@@ -51,7 +51,8 @@ test('a grant that fails stops the pass; the next one goes on, none lost, none t
 
 test('a new wallet: 5 credits, once, ever', async () => {
   const deps = stand(FRIDAY);
-  assert.deepEqual(await welcome(deps, wallet(7).toUpperCase().replace('0X', '0x')), { state: 'granted', credits: 5, left: 199 });
+  assert.deepEqual(await welcome(deps, wallet(7).toUpperCase().replace('0X', '0x')), { state: 'granted', credits: 5, left: 99 });
+  assert.deepEqual(Object.keys(JSON.parse(deps.map.get('welcomed.json') ?? '{}')), [wallet(7)]);   // /stats counts its plays as free
   assert.deepEqual(deps.grants[0], { address: wallet(7), credits: 5, idempotencyKey: `wall-welcome-${wallet(7)}`, reason: 'THE WALL ARCADE: 5 free plays for a new wallet' });
   assert.equal((await welcome(deps, wallet(7))).state, 'already');
   deps.at.now = Date.parse('2026-12-01T12:00:00Z');
@@ -67,9 +68,9 @@ test('a wallet the arcade knows gets nothing: a holder, a buyer, a tagged player
   assert.equal(deps.grants.length, 0);
 });
 
-test('200 wallets a week, then next week', async () => {
+test('100 wallets a week, then next week', async () => {
   const deps = stand(FRIDAY);
-  deps.map.set('welcome-week-3.json', '199');
+  deps.map.set('welcome-week-3.json', '99');
   assert.equal((await welcome(deps, wallet(1))).left, 0);
   assert.equal((await welcome(deps, wallet(2))).state, 'full');
   deps.at.now = Date.parse('2026-11-12T23:00:00Z');

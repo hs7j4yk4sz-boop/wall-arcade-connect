@@ -13,4 +13,5 @@ export const statsDeps = (): StatsDeps => ({
   events: eventStore(), people: peopleStore(), store: statsStore(), games: gamesStore(),
   pot: { store: potStore(), balance: () => treasuryBalance() },
   given: async () => Number(await getStore({ name: 'jackpot', consistency: 'strong' }).get('granted.json', { type: 'text' })) || 0,
+  welcomed: async () => Object.fromEntries(Object.entries(JSON.parse(await getStore({ name: 'jackpot', consistency: 'strong' }).get('welcomed.json', { type: 'text' }) ?? '{}') as Record<string, string>).map(([w, at]) => [w, Date.parse(at)])),
 });

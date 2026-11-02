@@ -1,5 +1,5 @@
 // THE FINALE: each week from week 2, one artist's game has its last seven hours, Thursday 16:00 to 23:00 Lisbon. 0.1 ETH from
-// NFC to the top 5 of the scores made in those hours, 0.02 ETH each, the game's artist out of their own prizes. A place nobody
+// NFC to the top 5 of the scores made in those hours, 0.04 / 0.025 / 0.015 / 0.012 / 0.008 ETH, the game's artist out of their own prizes. A place nobody
 // took stays in the treasury. The admin page picks the game (cards/src/jackpot-service.ts); the winners go out with the week,
 // in PAY's one send (buildPlan in cards/src/jackpot.ts). Everything here is pure.
 import { WALLET, type Game } from './games.js';
@@ -7,8 +7,8 @@ import { CREDIT_WEI, OUR_ARTIST, ethOf, shortWallet, type NumberedWeek } from '.
 import type { Week } from './week.js';
 
 export const FINALE_WEI = 100_000_000_000_000_000n;             // 0.1 ETH
-export const PLACES = 5;
-export const PLACE_WEI = FINALE_WEI / BigInt(PLACES);
+export const PRIZES_WEI = [40n, 25n, 15n, 12n, 8n].map((m) => m * 1_000_000_000_000_000n);   // 1st to 5th: 0.1 ETH in all
+export const PLACES = PRIZES_WEI.length;
 export const PLAY_PRIZE_WEI = CREDIT_WEI / 2n;                  // what a play adds to the prizes: 0.00005 ETH, half of a credit
 const HOURS_MS = 3_600_000;
 const AFTER_MS = 72 * HOURS_MS;                                 // the winners stay on the hub until Sunday 23:00
@@ -32,7 +32,7 @@ export function topFive(entries: Entry[], artistWallet: string): Winner[] {
   return entries.filter((e) => e.player?.kind === 'wallet' && WALLET.test(e.player.id ?? '') && e.player.id?.toLowerCase() !== artistWallet.toLowerCase()).slice(0, PLACES)
     .map((e, i) => {
       const wallet = (e.player?.id as string).toLowerCase();
-      return { rank: i + 1, wallet, name: e.player?.ensName || shortWallet(wallet), score: Number(e.score) || 0, wei: String(PLACE_WEI) };
+      return { rank: i + 1, wallet, name: e.player?.ensName || shortWallet(wallet), score: Number(e.score) || 0, wei: String(PRIZES_WEI[i]) };
     });
 }
 
