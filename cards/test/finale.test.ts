@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { DISPERSE, encodeDisperse } from '../src/disperse.js';
 import { candidates, finaleStage, finaleWindow, FINALE_WEI, playsEth, topFive, type Entry, type FinalePick } from '../src/finale.js';
 import type { Game } from '../src/games.js';
-import { adminJackpot, handleFinale, readPayment, type JackpotDeps, type LiveDoc, type WeekRecord } from '../src/jackpot-service.js';
+import { adminJackpot, handleFinale, readPayment, type JackpotDeps, type LiveDoc, type LiveFinale, type WeekRecord } from '../src/jackpot-service.js';
 import { buildPlan, ethOf, numberedWeek } from '../src/jackpot.js';
 import { TREASURY } from '../src/pot.js';
 
@@ -88,7 +88,7 @@ function stand(now: number, rpc: JackpotDeps['rpc'] = async () => null): Jackpot
     if (body.action === 'get-credit-group-usage') return Response.json({ groupId: '60faaf46-ba4b-460c-a82a-adb852371a94', from: body.from, to: body.from, page: { hasMore: false, nextCursor: null }, totals: { capturedPlays: '3', completedPlays: '3', creditsConsumed: '3' }, games: [] });
     throw new Error(`unexpected ${u}`);
   }) as typeof fetch;
-  return { map, asked, fetch: fetchStub, now: () => now, token: 'slk_test', rpc, store: { getText: async (k) => map.get(k) ?? null, set: async (k, v) => { map.set(k, v); } },
+  return { map, asked, fetch: fetchStub, now: () => now, token: 'slk_test', rpc, finale: true, store: { getText: async (k) => map.get(k) ?? null, set: async (k, v) => { map.set(k, v); } },
     games: { getText: async () => JSON.stringify(GAMES), getBytes: async () => null, set: async () => undefined, delete: async () => undefined } };
 }
 
@@ -105,7 +105,7 @@ test('the pick: an artist\'s live game for a week to come; a game of ours or a f
   assert.equal((await adminJackpot(late, { action: 'finale-pick', week: 2, appId: uuid(2) }, 'admin')).status, 409);
 });
 
-const live = async (deps: JackpotDeps): Promise<LiveDoc> => await (await handleFinale(deps)).json() as LiveDoc;
+const live = async (deps: JackpotDeps): Promise<LiveDoc & { finale: LiveFinale }> => await (await handleFinale(deps)).json() as LiveDoc & { finale: LiveFinale };
 
 test('/finale.json before: the week\'s plays and X, the game picked, no board read', async () => {
   const deps = stand(Date.parse('2026-11-08T12:00:00Z'));
@@ -119,6 +119,18 @@ test('/finale.json before: the week\'s plays and X, the game picked, no board re
   assert.equal(d.finale.from, '2026-11-12T16:00:00.000Z');
   assert.equal(deps.asked.length, 0);
   assert.ok(!JSON.stringify(d).includes(wallet(1)) && !JSON.stringify(d).includes(ARTIST));
+});
+
+test('/finale.json with the finale not public: the plays only, and a closed week pays no finale', async () => {
+  const deps = { ...stand(Date.parse('2026-11-13T10:00:00Z')), finale: false };
+  deps.map.set('finale-3.json', JSON.stringify(PICK));
+  const d = await live(deps);
+  assert.deepEqual([d.finale, d.finaleEth, d.addEth], [null, '0', '0.00015']);
+  assert.ok(!JSON.stringify(d).includes('GATE RUSH'));
+  deps.map.set('week-1.json', '{"plan":{"n":1},"status":"paid"}'); deps.map.set('week-2.json', '{"plan":{"n":2},"status":"paid"}');
+  const r = await adminJackpot(deps, { action: 'jackpot' }, 'admin') as { body: { weeks: WeekRecord[] } };
+  assert.equal(r.body.weeks.find((w) => w.plan?.n === 3)?.plan.finale, undefined);
+  assert.equal(deps.asked.filter((u) => u.includes('16%3A00')).length, 0);
 });
 
 test('/finale.json live: the board of the seven hours only, the artist out', async () => {

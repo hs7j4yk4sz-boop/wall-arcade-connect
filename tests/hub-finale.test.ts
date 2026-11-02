@@ -27,7 +27,7 @@ before(async () => {
 });
 after(() => browser?.close());
 
-async function open(site: string, files: Record<string, Uint8Array>, path: string, answer: () => unknown, viewport = { width: 1280, height: 900 }): Promise<Page> {
+async function open(site: string, files: Record<string, Uint8Array>, path: string, answer: () => unknown, viewport = { width: 1280, height: 900 }, wait = '#finale'): Promise<Page> {
   const context = await browser.newContext({ viewport }), page = await context.newPage();
   await context.route('**/*', (r) => {
     const url = new URL(r.request().url());
@@ -36,9 +36,19 @@ async function open(site: string, files: Record<string, Uint8Array>, path: strin
     return r.abort();
   });
   await page.goto(`${site}${path}`);
-  await page.locator('#finale').waitFor({ state: 'visible' });
+  await page.locator(wait).waitFor({ state: 'visible' });
   return page;
 }
+
+test('the finale not public: the plays alone, no block, no line in How it works', { skip: !CHROME }, async () => {
+  const page = await open(HUB, real, '/', () => ({ ...doc(3, {}) as object, finaleEth: '0', finale: null }), undefined, '#prizes');
+  await page.locator('#prizes', { hasText: '3 plays this week' }).waitFor();
+  assert.equal(await page.locator('#prizes').innerText(), 'PRIZES THIS WEEK: 0.00015 ETH · 3 plays this week');
+  assert.equal(await page.locator('#finale').isVisible(), false);
+  assert.equal(await page.locator('#howFinale').evaluate((p) => (p as HTMLElement).hidden), true);
+  assert.ok(!(await page.locator('body').innerText()).includes('0.1'));
+  await page.context().close();
+});
 
 test('the real page: the prizes in place of the balance, as John wrote them', { skip: !CHROME }, async () => {
   const page = await open(HUB, real, '/', () => doc(3, { state: 'before' }));

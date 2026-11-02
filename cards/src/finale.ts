@@ -6,6 +6,9 @@ import { WALLET, type Game } from './games.js';
 import { CREDIT_WEI, OUR_ARTIST, ethOf, shortWallet, type NumberedWeek } from './jackpot.js';
 import type { Week } from './week.js';
 
+// Off in production until John's GO (the artists agreed, the visual validated): /finale.json has no finale and PAY no finale
+// line, so the hub draws neither the block nor the 0.1 ETH. A draft shows it (cards/src/jackpot-store.ts). The admin picks anyway.
+export const FINALE_PUBLIC = false;
 export const FINALE_WEI = 100_000_000_000_000_000n;             // 0.1 ETH
 export const PRIZES_WEI = [40n, 25n, 15n, 12n, 8n].map((m) => m * 1_000_000_000_000_000n);   // 1st to 5th: 0.1 ETH in all
 export const PLACES = PRIZES_WEI.length;

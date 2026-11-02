@@ -150,7 +150,9 @@ nothing, the still stays, and the next night tries again.
 **THE FINALE:** each week from week 2, one artist's game has its last seven hours, Thursday 16:00 to 23:00 Lisbon: 0.1 ETH from
 NFC to the top 5 of those hours, 0.04 / 0.025 / 0.015 / 0.012 / 0.008 ETH, the artist out of their own prizes. The admin page picks the game
 (`cards/src/finale.ts`), the hub's first block and its prizes counter read `/finale.json`, and the winners go out with the week
-in PAY's one send, from the treasury, which must hold that 0.1 ETH.
+in PAY's one send, from the treasury, which must hold that 0.1 ETH. Not public yet: `FINALE_PUBLIC = false` until John's GO (the
+artists agreed, the visual validated on the draft, `cards/scripts/deploy-draft.sh`): `/finale.json` has no finale, the hub shows
+the plays alone, and PAY pays no finale. The admin page can pick the games already.
 
 **THE FREE CREDITS** (`cards/src/credits-service.ts`): 3 to each wallet holding a name, every Friday from 00:00 Lisbon, 25 grants
 per pass; 5 to a new wallet, once, from the hub's GET 5 FREE PLAYS, 100 wallets a week.

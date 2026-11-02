@@ -220,7 +220,7 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
   <div class="dlg-h"><h2 id="howTitle">How it works</h2><button type="button" id="howClose" aria-label="Close">×</button></div>
   <div class="dlg-b">
     <p>Every play counts for 1 credit and adds 0.00005 ETH to the week's prizes. The week closes every Thursday at 23:00 Lisbon: half to the best score on each game, 40% to the artists, 10% to the wall.</p>
-    <p>Every Thursday from 16:00 to 23:00, one artist's game is the Finale: 0.1 ETH from NFC to the top 5 of those seven hours.</p>
+    <p id="howFinale" hidden>Every Thursday from 16:00 to 23:00, one artist's game is the Finale: 0.1 ETH from NFC to the top 5 of those seven hours.</p>
     <p>50 plays for 0.005 ETH. New wallets get 5 free plays. Practice is free.</p>
   </div>
 </dialog>
@@ -448,7 +448,7 @@ function drawPrizes(d) {
   var more = shownPlays !== null && d.plays > shownPlays ? d.plays - shownPlays : 0;
   shownPlays = d.plays;
   Array.prototype.forEach.call(document.querySelectorAll('.prizes'), function (p) {
-    p.innerHTML = 'PRIZES THIS WEEK: <b>' + esc(d.finaleEth) + ' + ' + esc(d.addEth) + ' ETH</b> · ' + esc(d.plays) + (d.plays === 1 ? ' play' : ' plays') + ' this week' + (more ? '<span class="plus up">+' + (more * 5 / 1e5).toFixed(5) + '</span>' : '');
+    p.innerHTML = 'PRIZES THIS WEEK: <b>' + (d.finale ? esc(d.finaleEth) + ' + ' : '') + esc(d.addEth) + ' ETH</b> · ' + esc(d.plays) + (d.plays === 1 ? ' play' : ' plays') + ' this week' + (more ? '<span class="plus up">+' + (more * 5 / 1e5).toFixed(5) + '</span>' : '');
     if (more) setTimeout(function () { var u = p.querySelector('.plus'); if (u) u.className = 'plus'; }, 1200);
   });
 }
@@ -468,17 +468,23 @@ function drawFinale(f) {
     (f.top.length ? f.top.map(function (r) { return '<div class="r"><span class="k">' + esc(r.rank) + '</span><span class="p">' + esc(r.name) + '</span><span class="s">' + esc(r.score) + '</span><span class="e">' + esc(r.eth) + ' ETH</span></div>'; }).join('')
       : '<p class="empty">' + (f.state === 'live' ? 'No score yet. Be the first.' : 'No score in the seven hours.') + '</p>');
 }
-function drawLive(d) { live = d; drawPrizes(d); drawFinale(d.finale); tick(); }
+/* no finale in the document: not public yet (FINALE_PUBLIC, cards/src/finale.ts), the block and its line in How it works stay hidden */
+function drawLive(d) {
+  live = d; drawPrizes(d);
+  if (d.finale) drawFinale(d.finale); else document.getElementById('finale').hidden = true;
+  document.getElementById('howFinale').hidden = !d.finale;
+  tick();
+}
 function loadLive() {
   try {
     fetch(CARDS_SITE + '/finale.json').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(function (d) {
-      if (d && typeof d.plays === 'number' && d.finale) drawLive(d);
+      if (d && typeof d.plays === 'number') drawLive(d);
     }).catch(function () {});
   } catch (e) {}
 }
 function tick() {
   document.getElementById('countdown').textContent = clock(Math.max(0, Date.parse(week.to) - Date.now()));
-  if (!live) return;
+  if (!live || !live.finale) return;
   var f = live.finale, now = Date.now();
   plainText('fCount', f.state === 'live' ? clock(Math.max(0, Date.parse(f.to) - now)) + ' LEFT' : f.state === 'before' ? 'OPENS IN ' + clock(Math.max(0, Date.parse(f.from) - now)) : 'CLOSED');
   // a stage's end: the next reading says what comes next

@@ -104,7 +104,7 @@ function stand(rpc: JackpotDeps['rpc'] = chain(), now = AFTER): JackpotDeps & { 
     throw new Error(`unexpected ${u}`);
   }) as typeof fetch;
   return {
-    map, calls, fetch: fetchStub, now: () => now, token: undefined, rpc,
+    map, calls, fetch: fetchStub, now: () => now, token: undefined, rpc, finale: true,
     store: { getText: async (k) => map.get(k) ?? null, set: async (k, v) => { map.set(k, v); } },
     games: { getText: async () => JSON.stringify(GAMES), getBytes: async () => null, set: async () => undefined, delete: async () => undefined },
   };

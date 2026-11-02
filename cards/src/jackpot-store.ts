@@ -1,5 +1,6 @@
 // The jackpot's store on Netlify Blobs (store "jackpot"): earnings.json, live.json, week-<n>.json and finale-<n>.json (cards/src/jackpot-service.ts).
 import { getStore } from '@netlify/blobs';
+import { FINALE_PUBLIC } from './finale.js';
 import { SITE } from './games.js';
 import { gamesStore } from './games-store.js';
 import type { JackpotDeps } from './jackpot-service.js';
@@ -22,15 +23,15 @@ async function rpc(method: string, params: unknown[]): Promise<unknown> {
 export function jackpotDeps(): JackpotDeps {
   const store = getStore({ name: 'jackpot', consistency: 'strong' });
   return {
-    fetch, now: () => Date.now(), token: process.env.RARE_PROFILE_TOKEN || undefined, rpc, games: gamesStore(),
+    fetch, now: () => Date.now(), token: process.env.RARE_PROFILE_TOKEN || undefined, rpc, games: gamesStore(), finale: FINALE_PUBLIC,
     store: { getText: (key) => store.get(key, { type: 'text' }), set: async (key, value) => { await store.set(key, value); } },
   };
 }
 
 /** A Netlify draft's: Blobs are shared by every deploy, so a draft reads and never writes. RARE_PROFILE_TOKEN is production's only,
- *  so its plays are those of production's public earnings.json, the 15-minute reading. */
+ *  so its plays are those of production's public earnings.json, the 15-minute reading. It shows the FINALE, for review. */
 export function draftDeps(): JackpotDeps {
   const deps = jackpotDeps();
-  return { ...deps, token: undefined, plays: async () => ((await (await fetch(`${SITE}/earnings.json`, { signal: AbortSignal.timeout(5000) })).json()) as { credits: number }).credits,
+  return { ...deps, token: undefined, finale: true, plays: async () => ((await (await fetch(`${SITE}/earnings.json`, { signal: AbortSignal.timeout(5000) })).json()) as { credits: number }).credits,
     store: { getText: async (key) => (key === 'live.json' ? null : deps.store.getText(key)), set: async () => undefined } };
 }

@@ -27,6 +27,8 @@ export type JackpotDeps = {
   rpc(method: string, params: unknown[]): Promise<unknown>;
   /** a Netlify draft's plays of the week: it has no token (cards/src/jackpot-store.ts); else SuperRare's usage report */
   plays?(): Promise<number>;
+  /** the FINALE on the hub and in PAY (FINALE_PUBLIC in cards/src/finale.ts) */
+  finale: boolean;
 };
 
 /** A game's best score of the week with a wallet behind it; null when it has none. Throws when the board cannot be read. */
@@ -64,7 +66,7 @@ async function planOf(deps: JackpotDeps, week: NumberedWeek, opts: { strict: boo
   const bests = Object.fromEntries(await Promise.all(wanted.map(async (g): Promise<[string, Best | null]> => {
     try { return [g.appId, await bestOf(deps.fetch, g, week)]; } catch (error) { if (opts.strict) throw error; return [g.appId, null]; }
   })));
-  const pick = opts.strict ? await readPick(deps, week.n) : null;   // a closed week carries its finale
+  const pick = opts.strict && deps.finale ? await readPick(deps, week.n) : null;   // a closed week carries its finale
   return buildPlan(week, credits, games, bests, opts.everyGame, pick ? { pick, winners: await winnersOf(deps, pick, week), prizeWei: FINALE_WEI } : undefined);
 }
 
@@ -111,7 +113,7 @@ export async function handleEarnings(deps: JackpotDeps): Promise<Response> {
 
 export type LiveGame = { slug: string; title: string; artist: string; origin: string };
 export type LiveFinale = { state: 'before' | 'live' | 'after'; n: number; from: string; to: string; game: LiveGame | null; places: number; prizesEth: string[]; top: FinaleRow[]; next: { from: string; to: string; game: LiveGame | null } | null };
-export type LiveDoc = { updatedAt: string; week: NumberedWeek; plays: number; finaleEth: string; addEth: string; finale: LiveFinale; welcomeLeft: number };
+export type LiveDoc = { updatedAt: string; week: NumberedWeek; plays: number; finaleEth: string; addEth: string; finale: LiveFinale | null; welcomeLeft: number };
 const gameOf = (pick: FinalePick | null): LiveGame | null => (pick ? { slug: pick.slug, title: pick.title, artist: pick.artist, origin: pick.origin } : null);
 export const WELCOME_CAP = 100;                                 // new wallets a week (cards/src/credits-service.ts)
 export const welcomeKey = (n: number): string => `welcome-week-${n}.json`;
@@ -123,6 +125,8 @@ async function readLive(deps: JackpotDeps): Promise<LiveDoc> {
   const plays = client ? (await usageOf(client, Date.parse(week.from), Math.min(Date.parse(week.to), now + 1))).total.credits : await (deps.plays as () => Promise<number>)();
   const previous = week.n > 1 ? numberedWeek(Date.parse(week.from) - 1) : null;
   const [pick, last, count] = await Promise.all([readPick(deps, week.n), previous ? readPick(deps, previous.n) : null, deps.store.getText(welcomeKey(week.n))]);
+  const welcomeLeft = Math.max(0, WELCOME_CAP - (Number(count) || 0));
+  if (!deps.finale) return { updatedAt: new Date(now).toISOString(), week, plays, finaleEth: '0', addEth: playsEth(plays), welcomeLeft, finale: null };
   const stage = finaleStage(now, week, previous, Boolean(last));
   const shown = stage === 'after' ? previous as NumberedWeek : week, chosen = stage === 'after' ? last : pick, window = finaleWindow(shown);
   if (!window) throw new Error('no finale this week');
@@ -133,7 +137,7 @@ async function readLive(deps: JackpotDeps): Promise<LiveDoc> {
   } else if (stage === 'live' && pick) top = rowsOf(await winnersOf(deps, pick, week).catch(() => []));
   const coming = finaleWindow(week);
   return {
-    updatedAt: new Date(now).toISOString(), week, plays, finaleEth: '0.1000', addEth: playsEth(plays), welcomeLeft: Math.max(0, WELCOME_CAP - (Number(count) || 0)),
+    updatedAt: new Date(now).toISOString(), week, plays, finaleEth: '0.1000', addEth: playsEth(plays), welcomeLeft,
     finale: { state: stage, n: shown.n, ...window, game: gameOf(chosen), places: PLACES, prizesEth: PRIZES_WEI.map(ethOf), top, next: stage === 'after' && coming ? { ...coming, game: gameOf(pick) } : null },
   };
 }
