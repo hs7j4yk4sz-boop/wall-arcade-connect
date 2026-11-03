@@ -1,6 +1,6 @@
 // THE WALL ARCADE's numbers (GET /stats and /stats.json, cards/src/stats-page.ts), pure: everything is read beforehand
-// (cards/src/stats-sources.ts) and summed here, for three windows: today (Lisbon day), this week (Thursday 23:00 Lisbon to
-// Thursday 23:00) and since the launch (Tuesday 27 October 2026, 14:00 Lisbon).
+// (cards/src/stats-sources.ts) and summed here, for three windows: today (Lisbon day), this week (Friday 23:00 Lisbon to
+// Friday 23:00) and since the launch (Tuesday 27 October 2026, 14:00 Lisbon).
 // Plays started and completed are SuperRare's own report (credit-group usage) when it can be read; free versus paid is
 // ours: a holder's first 3 paid starts of a week are free (the 3 credits granted each week), a new wallet's first 5 after its
 // welcome are free (the hub's 5 free plays, once), the rest are paid. It needs plays per wallet, so it comes from our tags (cards/src/events.ts).
@@ -76,7 +76,7 @@ export function paidStarts(events: ArcadeEvent[]): ArcadeEvent[] {
     seen.add(run); return true;
   });
 }
-/** Each paid start, free or paid: a holder's first FREE_PER_WEEK of a week (Thursday 23:00 Lisbon) are free, and a welcomed
+/** Each paid start, free or paid: a holder's first FREE_PER_WEEK of a week (Friday 23:00 Lisbon) are free, and a welcomed
  *  wallet's first WELCOME_FREE from its welcome on. A start with no wallet is left unclassified. */
 export function classify(starts: ArcadeEvent[], holders: Set<string>, welcomed: Record<string, number> = {}): { event: ArcadeEvent; kind: 'free' | 'paid' | 'unknown' }[] {
   const used = new Map<string, number>();
@@ -152,7 +152,7 @@ export function buildStats(input: StatsInputs) {
       return [g.id, rows ? { players: rows.length, top3: rows.slice(0, 3).map((r) => ({ name: r.name, score: r.score })) } : null];
     }));
     return [w.key, {
-      label: w.label, from: new Date(w.from).toISOString(), to: new Date(w.key === 'launch' ? now : w.to).toISOString(),   // the window's real end (this week: the leaderboard's Friday 15:00)
+      label: w.label, from: new Date(w.from).toISOString(), to: new Date(w.key === 'launch' ? now : w.to).toISOString(),   // the window's real end (this week: its Friday 23:00)
       plays: { games, total },
       players: {
         wallets: wallets.length,

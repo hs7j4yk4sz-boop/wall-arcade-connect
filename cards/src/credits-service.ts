@@ -1,8 +1,8 @@
 // THE FREE CREDITS, on the arcade's credit group, through SuperRare's organizer grant (RARE_PROFILE_TOKEN; a grant moves no
 // funds). Kept in the store "jackpot".
 //   every 15 minutes (netlify/functions/credits-refresh.mts):
-//     the holders' recharge: from Friday 00:00 Lisbon, an hour after the week closes, 3 credits to each wallet holding a name
-//     of the wall (people.json, as it is that Friday). SuperRare answers with an HTML wall after about 60 grants in a row, so
+//     the holders' recharge: as soon as the week closes, Friday 23:00 Lisbon, 3 credits to each wallet holding a name of the
+//     wall (people.json, as it is then). SuperRare answers with an HTML wall after about 60 grants in a row, so
 //     25 a pass, and the rest at the next one; a retry with the same key never credits twice. The credits add up: there is no
 //     balance to read, so a holder who did not play has 6 the next week.
 //     known-wallets.json: the wallets the arcade has already seen (holders, pack buyers, our tags).
@@ -12,8 +12,7 @@ import { WELCOME_CAP, welcomeKey } from './jackpot-service.js';
 import { numberedWeek } from './jackpot.js';
 
 export const HOLDER_CREDITS = 3, WELCOME_CREDITS = 5, BATCH = 25;
-const HOUR_MS = 3_600_000;
-const FIRST_RECHARGE = 3;                                        // Friday 6 November 2026, the first week that opens on a Thursday
+const FIRST_RECHARGE = 3;                                        // Friday 6 November 2026 23:00, the first week that opens on a Friday
 
 export type Grant = { address: string; credits: number; idempotencyKey: string; reason: string };
 export type CreditDeps = {
@@ -30,7 +29,7 @@ export type Recharge = { n: number; startedAt: string; wallets: string[]; done: 
 /** One pass: the week's recharge goes on where it stopped; the first error waits for the next pass. */
 export async function rechargeHolders(deps: CreditDeps): Promise<Recharge | null> {
   const now = deps.now(), week = numberedWeek(now), key = `recharge-${week.n}.json`;
-  if (week.n < FIRST_RECHARGE || now < Date.parse(week.from) + HOUR_MS) return null;
+  if (week.n < FIRST_RECHARGE) return null;
   const record = JSON.parse((await deps.store.getText(key)) ?? 'null') as Recharge | null
     ?? { n: week.n, startedAt: new Date(now).toISOString(), wallets: [...new Set((await deps.holders()).map((w) => w.toLowerCase()))].sort(), done: [] };
   if (record.finishedAt) return record;

@@ -83,7 +83,7 @@ nav{position:sticky;top:0;z-index:20;background:#FBF8ECf2;backdrop-filter:blur(6
 .game.yours .foot{border-top-style:dashed}
 .game.yours .foot .btn{font-size:clamp(15px,1.3vw,18px);padding:12px 10px;white-space:nowrap}
 
-/* the FINALE, the page's first block: Thursday 16:00 to 23:00 Lisbon. Blue before and after, yellow while it runs */
+/* the FINALE, the page's first block: Friday 16:00 to 23:00 Lisbon. Blue before and after, yellow while it runs */
 .finale{padding:clamp(24px,3.5vw,44px) var(--padx);background:var(--blue);color:var(--paper);border-bottom:2px solid var(--ink)}
 .finale.on{background:var(--yellow);color:var(--ink)}
 .finale .wrap{display:grid;grid-template-columns:1fr;gap:clamp(20px,3vw,40px)}
@@ -93,6 +93,7 @@ nav{position:sticky;top:0;z-index:20;background:#FBF8ECf2;backdrop-filter:blur(6
 .finale h2{margin-top:12px;font-size:clamp(44px,8vw,104px);line-height:.92;overflow-wrap:anywhere}
 .finale .by{margin-top:10px;font:400 clamp(18px,2.4vw,24px)/1.2 var(--dot)}
 .finale .what{margin-top:14px;font-size:15px;line-height:1.55;max-width:48ch}
+.finale .bonus{margin-top:8px;font-size:15px;line-height:1.55;font-weight:700;max-width:48ch}
 .finale .when{margin-top:18px;display:flex;align-items:center;gap:16px 24px;flex-wrap:wrap}
 .finale .t{font:400 clamp(28px,4.4vw,48px)/1 var(--dot);letter-spacing:.04em;font-variant-numeric:tabular-nums}
 .finale .btn{background:var(--paper);border-color:var(--paper);color:var(--blue);font-size:22px;white-space:nowrap}
@@ -219,8 +220,8 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
 <dialog id="how" aria-labelledby="howTitle">
   <div class="dlg-h"><h2 id="howTitle">How it works</h2><button type="button" id="howClose" aria-label="Close">×</button></div>
   <div class="dlg-b">
-    <p>Every play counts for 1 credit and adds 0.00005 ETH to the week's prizes. The week closes every Thursday at 23:00 Lisbon: half to the best score on each game, 40% to the artists, 10% to the wall.</p>
-    <p id="howFinale" hidden>Every Thursday from 16:00 to 23:00, one artist's game is the Finale: 0.1 ETH from NFC to the top 5 of those seven hours.</p>
+    <p>Every play counts for 1 credit and adds 0.00005 ETH to the week's prizes. The week closes every Friday at 23:00 Lisbon: half to the best score on each game, 40% to the artists, 10% to the wall.</p>
+    <p id="howFinale" hidden>Every Friday from 16:00 to 23:00 Lisbon, one artist's game is the Finale: 0.1 ETH from NFC to the top 5 of those seven hours.</p>
     <p>50 plays for 0.005 ETH. New wallets get 5 free plays. Practice is free.</p>
   </div>
 </dialog>
@@ -243,6 +244,7 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
       <h2 class="anton" id="fGame"></h2>
       <p class="by" id="fBy"></p>
       <p class="what" id="fWhat"></p>
+      <p class="bonus" id="fBonus" hidden></p>
       <div class="when"><p class="t" id="fCount"></p><a class="btn" id="fPlay" target="_blank" rel="noopener" hidden></a></div>
     </div>
     <div class="ftop" id="fTop" hidden></div>
@@ -255,7 +257,7 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
   <div>
     <p class="kicker">on the wall presents</p>
     <h1 class="anton">The Wall Arcade</h1>
-    <p class="base"><span>Play arcade games built on the names of a real wall in Lisbon.</span><span>Every paid play feeds the jackpot.</span><span>Every Thursday, the best score on each game wins.</span></p>
+    <p class="base"><span>Play arcade games built on the names of a real wall in Lisbon.</span><span>Every paid play feeds the jackpot.</span><span>Every Friday, the best score on each game wins.</span></p>
     <div class="act">
       <a class="btn" href="#games">PLAY <span>→</span></a>
       <a class="btn dashed" href="./builders.html">CREATE MY OWN GAME <span>→</span></a>
@@ -285,9 +287,9 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
       <p class="lbl" id="weekNo">Week 1</p>
       <h2 class="anton">This week's<br>jackpot</h2>
       <p class="amount prizes" id="prizes" aria-live="polite">—</p>
-      <p class="rule">Every play adds 0.00005 ETH. Every Thursday at 23:00 Lisbon the week closes: half to the best score on each game, 40% to the artists, 10% to the wall.</p>
+      <p class="rule">Every play adds 0.00005 ETH. Every Friday at 23:00 Lisbon the week closes: half to the best score on each game, 40% to the artists, 10% to the wall.</p>
       <p class="rule"><a href="./earnings.html">See who earns what this week →</a></p>
-      <div class="count"><p class="lbl">The week closes · Thursday 23:00 Lisbon</p><p class="t" id="countdown">—</p></div>
+      <div class="count"><p class="lbl">The week closes · Friday 23:00 Lisbon</p><p class="t" id="countdown">—</p></div>
     </div>
     <div class="boards" id="boards"><!--BOARDS:START--><!--BOARDS:END--></div>
   </div>
@@ -407,8 +409,8 @@ sound.onclick = function () {
   sound.setAttribute('aria-pressed', String(!teaser.muted));
 };
 
-/* week:start  THIS WEEK = Thursday 23:00 Lisbon -> next Thursday 23:00 Lisbon, one closing for every game; week 1 ran from
-   Thursday 22 October 2026 00:00 to Friday 30 October 15:00 Lisbon, week 2 from there to Thursday 5 November 23:00 (same as
+/* week:start  THIS WEEK = Friday 23:00 Lisbon -> next Friday 23:00 Lisbon, one closing for every game; week 1 ran from
+   Thursday 22 October 2026 00:00 to Friday 30 October 15:00 Lisbon, week 2 from there to Friday 6 November 23:00 (same as
    src/shell/week.ts, pinned by tests/week.test.ts which evaluates this block). Sent to each game as ?from=&to= (UTC instants, [from, to)). */
 function lisbonWeek(now) {
   var DAY = 86400000, fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
@@ -421,12 +423,12 @@ function lisbonWeek(now) {
     for (var i = 0; i < 2; i++) { var p = parts(guess); guess += wall - Date.UTC(p.y, p.m - 1, p.d, p.hh, p.mm); }
     return guess;
   }
-  var iso = function (t) { return new Date(t).toISOString(); }, firstTo = toUtc(2026, 10, 30, 15), secondTo = toUtc(2026, 11, 5, 23);
+  var iso = function (t) { return new Date(t).toISOString(); }, firstTo = toUtc(2026, 10, 30, 15), secondTo = toUtc(2026, 11, 6, 23);
   if (now < firstTo) return { from: iso(toUtc(2026, 10, 22, 0)), to: iso(firstTo) };
   if (now < secondTo) return { from: iso(firstTo), to: iso(secondTo) };
-  var p = parts(now), back = (p.weekday - 4 + 7) % 7, thursday = new Date(Date.UTC(p.y, p.m - 1, p.d) - back * DAY);
-  var from = toUtc(thursday.getUTCFullYear(), thursday.getUTCMonth() + 1, thursday.getUTCDate(), 23);
-  if (from > now) { var prev = new Date(thursday.getTime() - 7 * DAY); from = toUtc(prev.getUTCFullYear(), prev.getUTCMonth() + 1, prev.getUTCDate(), 23); }
+  var p = parts(now), back = (p.weekday - 5 + 7) % 7, friday = new Date(Date.UTC(p.y, p.m - 1, p.d) - back * DAY);
+  var from = toUtc(friday.getUTCFullYear(), friday.getUTCMonth() + 1, friday.getUTCDate(), 23);
+  if (from > now) { var prev = new Date(friday.getTime() - 7 * DAY); from = toUtc(prev.getUTCFullYear(), prev.getUTCMonth() + 1, prev.getUTCDate(), 23); }
   var s = parts(from), next = new Date(Date.UTC(s.y, s.m - 1, s.d) + 7 * DAY);
   return { from: iso(from), to: iso(toUtc(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), 23)) };
 }
@@ -435,14 +437,20 @@ function lisbonWeek(now) {
 /* ---- the week's number, the countdown to its end, and the card service's /finale.json every 20 seconds: the prizes
    ("PRIZES THIS WEEK: 0.1000 + X ETH · N plays this week", X = N × 0.00005) and the FINALE block ---- */
 var week = lisbonWeek(Date.now());
-var FIRST_FROM = '2026-10-21T23:00:00.000Z', FIRST_TO = Date.parse('2026-10-30T15:00:00.000Z');
-document.getElementById('weekNo').textContent = 'Week ' + (week.from === FIRST_FROM ? 1 : 2 + Math.ceil((Date.parse(week.from) - FIRST_TO - 72e5) / 6048e5));
+var FIRST_FROM = '2026-10-21T23:00:00.000Z', SECOND_FROM = '2026-10-30T15:00:00.000Z', SECOND_TO = Date.parse('2026-11-06T23:00:00.000Z');
+/* weeks 1 and 2 are odd lengths; from week 3, Friday to Friday (a DST change moves an end by an hour, hence the rounding) */
+document.getElementById('weekNo').textContent = 'Week ' + (week.from === FIRST_FROM ? 1 : week.from === SECOND_FROM ? 2 : 3 + Math.round((Date.parse(week.from) - SECOND_TO) / 6048e5));
 var live = null, shownPlays = null;
 function clock(left) {
   var z = function (v) { return String(v).padStart(2, '0'); };
   return Math.floor(left / 864e5) + 'D ' + z(Math.floor(left % 864e5 / 36e5)) + ':' + z(Math.floor(left % 36e5 / 6e4)) + ':' + z(Math.floor(left % 6e4 / 1e3));
 }
-function lisbonDay(t) { return new Date(t).toLocaleString('en-GB', { timeZone: 'Europe/Lisbon', weekday: 'short', day: 'numeric', month: 'short' }); }
+/* "FRI NOV 6 · 4PM LISBON · 8AM SF · 11AM NY": a finale's start in the three cities */
+function cities(t) {
+  var d = new Date(t), at = function (zone) { return d.toLocaleString('en-US', { timeZone: zone, hour: 'numeric', minute: '2-digit', hour12: true }).replace(':00', '').replace(/\s/g, '').toUpperCase(); };
+  return d.toLocaleString('en-US', { timeZone: 'Europe/Lisbon', weekday: 'short', month: 'short', day: 'numeric' }).replace(',', '').toUpperCase() +
+    ' · ' + at('Europe/Lisbon') + ' LISBON · ' + at('America/Los_Angeles') + ' SF · ' + at('America/New_York') + ' NY';
+}
 function plainText(id, text) { document.getElementById(id).textContent = text; }
 function drawPrizes(d) {
   var more = shownPlays !== null && d.plays > shownPlays ? d.plays - shownPlays : 0;
@@ -455,11 +463,13 @@ function drawPrizes(d) {
 function drawFinale(f) {
   var box = document.getElementById('finale'), top = document.getElementById('fTop'), play = document.getElementById('fPlay'), name = f.game ? f.game.title : 'To be announced';
   box.hidden = false; box.className = 'finale' + (f.state === 'live' ? ' on' : '');
-  plainText('fLabel', f.state === 'live' ? 'The Finale · live · until 23:00 Lisbon' : f.state === 'after' ? 'The Finale of week ' + f.n + ' · the winners' : 'The Finale · ' + lisbonDay(f.from) + ' · 16:00 to 23:00 Lisbon');
+  plainText('fLabel', f.state === 'live' ? 'The Finale · live · until 23:00 Lisbon' : f.state === 'after' ? 'The Finale of week ' + f.n + ' · the winners' : 'The Finale · ' + cities(f.from));
   plainText('fGame', name);
-  plainText('fBy', f.game ? 'by ' + f.game.artist : 'One artist\'s game, every Thursday');
-  plainText('fWhat', f.state === 'after' ? '0.1 ETH from NFC to the top 5 of the seven hours.' + (f.next ? ' Next Finale: ' + (f.next.game ? f.next.game.title + ', ' : '') + lisbonDay(f.next.from) + ', 16:00 Lisbon.' : '')
+  plainText('fBy', f.game ? 'by ' + f.game.artist : 'One artist\'s game, every Friday');
+  plainText('fWhat', f.state === 'after' ? '0.1 ETH from NFC to the top 5 of the seven hours.' + (f.next ? ' Next Finale: ' + (f.next.game ? f.next.game.title + ', ' : '') + cities(f.next.from) + '.' : '')
     : '0.1 ETH from NFC to the top ' + f.places + ' scores made in those seven hours: ' + (f.prizesEth || []).join(' · ') + ' ETH. 1 credit a play. Practice is free. The artist can\'t win on their own game.');
+  var bonus = document.getElementById('fBonus');
+  bonus.hidden = !f.bonus; bonus.textContent = f.bonus || '';
   var game = f.state === 'after' ? (f.next && f.next.game) : f.game;
   play.hidden = !game;
   if (game) { play.href = game.origin + '/'; play.textContent = f.state === 'live' ? 'PLAY THE FINALE →' : 'PRACTICE NOW →'; }

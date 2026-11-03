@@ -22,6 +22,11 @@ const GAMES = [game(1, 'UNBREAKABLE', 'ON THE WALL', null), game(2, 'FULL ROW', 
 const heast: Best = { wallet: HEAST, name: 'heast.eth', score: 6753 };
 const WEEK1 = buildPlan(numberedWeek(Date.parse('2026-10-29T12:00:00Z')), { [uuid(1)]: 89, [uuid(2)]: 38, [uuid(3)]: 27 }, GAMES, { [uuid(1)]: { wallet: W77, name: '0x77d3…92e2', score: 2432 }, [uuid(2)]: heast, [uuid(3)]: heast });
 const PLAN = { ...WEEK1, n: 2 };                                 // week 1's numbers, as week 2: week 1 itself has no PAY
+const COFFEES = '+ 10 coffees by Bully Meow for the top 10', CSV = `rank,wallet,ens,score\r\n"1","${HEAST}","heast.eth","812"\r\n"2","${W77}","","640"\r\n`;
+const FINALES = [
+  { n: 2, from: '2026-11-06T16:00:00.000Z', to: '2026-11-06T23:00:00.000Z', open: false, closed: true, pick: { appId: uuid(3), title: 'Dirty Signals Radio', artist: 'Bully Meow', bonus: COFFEES } },
+  { n: 3, from: '2026-11-13T16:00:00.000Z', to: '2026-11-13T23:00:00.000Z', open: true, closed: false, pick: null },
+];
 const SESSION = { credentials: { session: { sessionId: 'session-1', userId: 'user-1', address: OTHER, expiresAt: new Date(Date.now() + 3600_000).toISOString() }, refreshToken: 'refresh-1', refreshExpiresAt: new Date(Date.now() + 86400_000).toISOString() }, lineageId: 'session-1' };
 
 let browser: Browser, html: string, script: string;
@@ -47,6 +52,8 @@ async function open(wallet: { account: string; balance: bigint; chain?: string; 
     const body = r.request().postDataJSON() as Record<string, unknown>;
     posts.push(body);
     if (body.action === 'whoami') return r.fulfill({ headers: cors, json: { admin: true, wallet: OTHER, games: GAMES } });
+    if (body.action === 'finale' || body.action === 'finale-pick') return r.fulfill({ headers: cors, json: { ok: true, finales: FINALES, offered: [{ appId: uuid(3), title: 'Dirty Signals Radio', artist: 'Bully Meow' }] } });
+    if (body.action === 'finale-top10') return r.fulfill({ headers: cors, json: { ok: true, n: 2, title: 'Dirty Signals Radio', rows: [{}, {}], csv: CSV } });
     if (body.action === 'jackpot-paid') record = { ...record, status: 'paid', hash: body.hash, wall: NFC, paidAt: '2026-10-31T20:00:00.000Z' };
     if (body.action === 'jackpot-manual') record = { ...record, status: 'paid', manual: true, hashes: body.hashes, paidAt: '2026-11-02T14:00:00.000Z' };
     return r.fulfill({ headers: cors, json: { ok: true, weeks: [record], treasury: TREASURY } });
@@ -156,5 +163,25 @@ test('week 1, paid by hand: no PAY ever, MARK PAID with its hashes, then the has
   assert.match(await page.locator('#week-1').innerText(), /paid by hand/);
   assert.equal(await page.locator('.manual').count(), 0);
   assert.equal((await asked(page)).filter((a) => a.method === 'eth_sendTransaction').length, 0);
+  await context.close();
+});
+
+test('FINALE: a closed finale downloads its top 10 as CSV; a week to come takes a game and its bonus line', { skip: !CHROME }, async () => {
+  const { context, page, posts } = await open({ account: TREASURY, balance: ENOUGH });
+  const closed = page.locator('#finale-2');
+  await closed.waitFor();
+  assert.match(await closed.innerText(), /Week 2: Dirty Signals Radio[\s\S]*Fri 6 Nov[\s\S]*by Bully Meow[\s\S]*\+ 10 coffees by Bully Meow for the top 10/i);
+  assert.equal(await closed.locator('select').count(), 0);
+  const [file] = await Promise.all([page.waitForEvent('download'), closed.getByRole('button', { name: 'Download the top 10 (CSV)' }).click()]);
+  assert.equal(file.suggestedFilename(), 'finale-week-2-dirty-signals-radio-top10.csv');
+  assert.equal(await readFile(await file.path() as string, 'utf8'), CSV);
+  assert.deepEqual(posts.find((p) => p.action === 'finale-top10'), { action: 'finale-top10', week: 2, accessToken: 'session-1' });
+  assert.match(await page.locator('#finaleNote').innerText(), /Week 2: 2 lines downloaded/);
+  const next = page.locator('#finale-3');
+  await next.locator('select').selectOption(uuid(3));
+  await next.locator('input.bonus').fill(COFFEES);
+  await next.getByRole('button', { name: 'Save' }).click();
+  await page.locator('#finaleNote', { hasText: 'Week 3 saved.' }).waitFor();
+  assert.deepEqual(posts.find((p) => p.action === 'finale-pick'), { action: 'finale-pick', week: 3, appId: uuid(3), bonus: COFFEES, accessToken: 'session-1' });
   await context.close();
 });

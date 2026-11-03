@@ -1,4 +1,4 @@
-// Every 15 minutes: the holders' recharge, from Friday 00:00 Lisbon, 25 grants a pass, and the list of the wallets already seen.
+// Every 15 minutes: the holders' recharge, as soon as the week closes (Friday 23:00 Lisbon), 25 grants a pass, and the list of the wallets already seen.
 import { refreshKnown, rechargeHolders } from '../../src/credits-service.js';
 import { creditDeps } from '../../src/credits-store.js';
 

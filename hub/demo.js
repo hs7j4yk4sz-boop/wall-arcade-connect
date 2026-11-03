@@ -4,7 +4,7 @@
 (function () {
   var mode = new URLSearchParams(location.search).get('demo');
   var demoing = ['before', 'live', 'after'].indexOf(mode) >= 0, HOUR = 36e5, start = Date.now();
-  var GAME = { slug: 'gate-rush', title: 'GATE RUSH', artist: 'K4NCUN0', origin: 'https://f523stv7.srstudio.dev' };
+  var GAME = { slug: 'dirty-signals-radio', title: 'Dirty Signals Radio', artist: 'Bully Meow', origin: 'https://sy3mgnnh.srstudio.dev' }, BONUS = '+ 10 coffees by Bully Meow for the top 10';
   var NEXT = { slug: 'roll-call-run', title: 'ROLL CALL RUN', artist: 'LAMPWRECKED', origin: 'https://zm6f7sxk.srstudio.dev' };
   var names = ['player-one.eth', 'player-two.eth', '0x1234…abcd', 'player-four.eth', 'player-five.eth'], plays = 128;
   var scores = [31240, 28615, 27102, 19880, 15460];
@@ -12,13 +12,13 @@
   function x5(n) { return (n * 5 / 1e5).toFixed(5); }
   function doc() {
     var top = names.map(function (name, i) { return { rank: i + 1, name: name, score: scores[i], eth: ['0.04', '0.025', '0.015', '0.012', '0.008'][i] }; }), f;
-    /* a real Thursday: the end of a week of the page's own lisbonWeek */
-    var thursday = Date.parse(lisbonWeek(start + 7 * 24 * HOUR).to);
-    if (mode === 'before') f = { state: 'before', n: 3, from: iso(thursday - 7 * HOUR), to: iso(thursday), game: GAME, top: [], next: null };
+    /* a real Friday: the end of a week of the page's own lisbonWeek */
+    var friday = Date.parse(lisbonWeek(start + 7 * 24 * HOUR).to);
+    if (mode === 'before') f = { state: 'before', n: 3, from: iso(friday - 7 * HOUR), to: iso(friday), game: GAME, top: [], next: null };
     else if (mode === 'live') f = { state: 'live', n: 3, from: iso(start - 4 * HOUR), to: iso(start + 3 * HOUR), game: GAME, top: top, next: null };
-    else f = { state: 'after', n: 3, from: iso(start - 12 * HOUR), to: iso(start - 5 * HOUR), game: GAME, top: top, next: { from: iso(thursday - 7 * HOUR), to: iso(thursday), game: NEXT } };
-    f.places = 5; f.prizesEth = ['0.04', '0.025', '0.015', '0.012', '0.008'];
-    return { updatedAt: iso(Date.now()), week: { n: 3 }, plays: plays, finaleEth: '0.1000', addEth: x5(plays), finale: f, welcomeLeft: 171 };
+    else f = { state: 'after', n: 3, from: iso(start - 12 * HOUR), to: iso(start - 5 * HOUR), game: GAME, top: top, next: { from: iso(friday - 7 * HOUR), to: iso(friday), game: NEXT } };
+    f.bonus = BONUS; f.places = 5; f.prizesEth = ['0.04', '0.025', '0.015', '0.012', '0.008'];
+    return { updatedAt: iso(Date.now()), week: { n: 3 }, plays: plays, finaleEth: '0.1000', addEth: x5(plays), finale: f, welcomeLeft: 71 };
   }
   var realFetch = window.fetch;
   window.fetch = function (url, options) {
@@ -38,7 +38,7 @@
     });
     document.body.insertBefore(bar, document.body.firstChild);
     var claim = document.getElementById('welcomeClaim'), said = document.getElementById('welcomeSaid'), turn = 0;
-    var answers = ['5 plays are in your wallet. Pick a game: each one starts with your consent.', 'This wallet already has its 5 free plays.', 'This wallet has played here before: the 5 free plays are for new wallets.', 'This week\'s 100 wallets are in. Come back after Thursday 23:00 Lisbon.'];
+    var answers = ['5 plays are in your wallet. Pick a game: each one starts with your consent.', 'This wallet already has its 5 free plays.', 'This wallet has played here before: the 5 free plays are for new wallets.', 'This week\'s 100 wallets are in. Come back after Friday 23:00 Lisbon.'];
     claim.addEventListener('click', function () { said.textContent = 'Preview, nothing granted: ' + answers[turn++ % answers.length]; });
     if (!demoing) return;
     (function run() {

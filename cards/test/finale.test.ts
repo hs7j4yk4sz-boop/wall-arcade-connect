@@ -18,9 +18,9 @@ const WEEK2 = numberedWeek(Date.parse('2026-11-01T12:00:00Z')), WEEK3 = numbered
 const PICK: FinalePick = { n: 3, appId: uuid(2), slug: 'gate-rush', title: 'GATE RUSH', origin: 'https://game2.srstudio.dev', artist: 'K4NCUN0', artistWallet: ARTIST, by: 'admin', at: 'x' };
 const board = [entry(9, 9999, 'artist.eth'), entry(1, 900, 'one.eth'), entry(2, 800), entry(3, 700), entry(4, 600), entry(5, 500), entry(6, 400)];
 
-test('the seven hours: Thursday 16:00 to 23:00 Lisbon, in winter and in summer; week 1 had none', () => {
-  assert.deepEqual(finaleWindow(WEEK2), { from: '2026-11-05T16:00:00.000Z', to: '2026-11-05T23:00:00.000Z' });
-  assert.deepEqual(finaleWindow(numberedWeek(Date.parse('2027-06-01T12:00:00Z'))), { from: '2027-06-03T15:00:00.000Z', to: '2027-06-03T22:00:00.000Z' });
+test('the seven hours: Friday 16:00 to 23:00 Lisbon, in winter and in summer; week 1 had none', () => {
+  assert.deepEqual(finaleWindow(WEEK2), { from: '2026-11-06T16:00:00.000Z', to: '2026-11-06T23:00:00.000Z' });
+  assert.deepEqual(finaleWindow(numberedWeek(Date.parse('2027-06-01T12:00:00Z'))), { from: '2027-06-04T15:00:00.000Z', to: '2027-06-04T22:00:00.000Z' });
   assert.equal(finaleWindow(numberedWeek(Date.parse('2026-10-25T12:00:00Z'))), null);
 });
 
@@ -39,16 +39,17 @@ test('the admin page offers the artists\' live games with a wallet, not ours', (
   assert.deepEqual(candidates(GAMES).map((g) => g.title), ['GATE RUSH']);
 });
 
-test('the block: before, live for seven hours, after for 72 hours, then before the next', () => {
+test('the block: before, live for seven hours, after until Sunday 23:00, then before the next', () => {
   const at = (iso: string): 'before' | 'live' | 'after' => { const t = Date.parse(iso), week = numberedWeek(t); return finaleStage(t, week, numberedWeek(Date.parse(week.from) - 1), true); };
   assert.equal(at('2026-11-02T12:00:00Z'), 'before');
-  assert.equal(at('2026-11-05T15:59:59Z'), 'before');
-  assert.equal(at('2026-11-05T16:00:00Z'), 'live');
-  assert.equal(at('2026-11-05T22:59:59Z'), 'live');
-  assert.equal(at('2026-11-05T23:00:00Z'), 'after');
+  assert.equal(at('2026-11-05T23:00:00Z'), 'before');   // Thursday 23:00: nothing any more
+  assert.equal(at('2026-11-06T15:59:59Z'), 'before');
+  assert.equal(at('2026-11-06T16:00:00Z'), 'live');
+  assert.equal(at('2026-11-06T22:59:59Z'), 'live');
+  assert.equal(at('2026-11-06T23:00:00Z'), 'after');
   assert.equal(at('2026-11-08T22:59:59Z'), 'after');
   assert.equal(at('2026-11-08T23:00:00Z'), 'before');
-  const t = Date.parse('2026-11-06T00:00:00Z'), week = numberedWeek(t);
+  const t = Date.parse('2026-11-07T00:00:00Z'), week = numberedWeek(t);
   assert.equal(finaleStage(t, week, numberedWeek(Date.parse(week.from) - 1), false), 'before');   // no game that week: nothing to show
 });
 
@@ -101,8 +102,36 @@ test('the pick: an artist\'s live game for a week to come; a game of ours or a f
   assert.equal((JSON.parse(deps.map.get('finale-3.json') as string) as FinalePick).artistWallet, ARTIST);
   assert.equal((await adminJackpot(deps, { action: 'finale-pick', week: 3, appId: uuid(1) }, 'admin')).status, 400);
   assert.equal((await adminJackpot(deps, { action: 'finale-pick', week: 99, appId: uuid(2) }, 'admin')).status, 400);
-  const late = stand(Date.parse('2026-11-05T16:00:00Z'));
+  const late = stand(Date.parse('2026-11-06T16:00:00Z'));
   assert.equal((await adminJackpot(late, { action: 'finale-pick', week: 2, appId: uuid(2) }, 'admin')).status, 409);
+});
+
+test('the pick\'s bonus line: trimmed, one line, 120 characters at most; saving without it drops it', async () => {
+  const deps = stand(Date.parse('2026-11-01T12:00:00Z'));
+  await adminJackpot(deps, { action: 'finale-pick', week: 2, appId: uuid(2), bonus: '  + 10 coffees by K4NCUN0\n for the top 10 ' }, 'admin');
+  assert.equal((JSON.parse(deps.map.get('finale-2.json') as string) as FinalePick).bonus, '+ 10 coffees by K4NCUN0 for the top 10');
+  await adminJackpot(deps, { action: 'finale-pick', week: 2, appId: uuid(2), bonus: 'x'.repeat(300) }, 'admin');
+  assert.equal((JSON.parse(deps.map.get('finale-2.json') as string) as FinalePick).bonus?.length, 120);
+  await adminJackpot(deps, { action: 'finale-pick', week: 2, appId: uuid(2) }, 'admin');
+  assert.equal((JSON.parse(deps.map.get('finale-2.json') as string) as FinalePick).bonus, undefined);
+});
+
+test('the top 10 as CSV, once the finale has closed: rank, wallet, ENS, score, the artist out', async () => {
+  const open = stand(Date.parse('2026-11-13T18:00:00Z'));
+  open.map.set('finale-3.json', JSON.stringify(PICK));
+  assert.equal((await adminJackpot(open, { action: 'finale-top10', week: 3 }, 'admin')).status, 400);   // still running
+  const deps = stand(Date.parse('2026-11-14T10:00:00Z'));
+  deps.map.set('finale-3.json', JSON.stringify(PICK));
+  const list = await adminJackpot(deps, { action: 'finale' }, 'admin') as { body: { finales: { n: number; closed: boolean; open: boolean }[] } };
+  assert.deepEqual(list.body.finales.map((f) => [f.n, f.closed, f.open]), [[3, true, false], [4, false, true], [5, false, true], [6, false, true], [7, false, true]]);
+  const r = await adminJackpot(deps, { action: 'finale-top10', week: 3 }, 'admin') as { status: number; body: { rows: { rank: number; wallet: string; ens: string; score: number }[]; csv: string } };
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.rows.map((x) => x.wallet), [1, 2, 3, 4, 5, 6].map(wallet));
+  assert.deepEqual(r.body.rows[0], { rank: 1, wallet: wallet(1), ens: 'one.eth', score: 900 });
+  assert.equal(r.body.csv.split('\r\n')[0], 'rank,wallet,ens,score');
+  assert.equal(r.body.csv.split('\r\n')[2], `"2","${wallet(2)}","","800"`);
+  assert.match(deps.asked.at(-1) as string, /from=2026-11-13T16%3A00%3A00.000Z&to=2026-11-13T23%3A00%3A00.000Z/);
+  assert.equal((await adminJackpot(deps, { action: 'finale-top10', week: 2 }, 'admin')).status, 400);     // no game that week
 });
 
 const live = async (deps: JackpotDeps): Promise<LiveDoc & { finale: LiveFinale }> => await (await handleFinale(deps)).json() as LiveDoc & { finale: LiveFinale };
@@ -116,13 +145,14 @@ test('/finale.json before: the week\'s plays and X, the game picked, no board re
   assert.deepEqual([d.plays, d.finaleEth, d.addEth, d.welcomeLeft], [3, '0.1000', '0.00015', 71]);
   assert.equal(d.finale.state, 'before');
   assert.equal(d.finale.game?.title, 'GATE RUSH');
-  assert.equal(d.finale.from, '2026-11-12T16:00:00.000Z');
+  assert.equal(d.finale.from, '2026-11-13T16:00:00.000Z');
+  assert.equal(d.finale.bonus, null);
   assert.equal(deps.asked.length, 0);
   assert.ok(!JSON.stringify(d).includes(wallet(1)) && !JSON.stringify(d).includes(ARTIST));
 });
 
 test('/finale.json with the finale not public: the plays only, and a closed week pays no finale', async () => {
-  const deps = { ...stand(Date.parse('2026-11-13T10:00:00Z')), finale: false };
+  const deps = { ...stand(Date.parse('2026-11-14T10:00:00Z')), finale: false };
   deps.map.set('finale-3.json', JSON.stringify(PICK));
   const d = await live(deps);
   assert.deepEqual([d.finale, d.finaleEth, d.addEth], [null, '0', '0.00015']);
@@ -134,16 +164,17 @@ test('/finale.json with the finale not public: the plays only, and a closed week
 });
 
 test('/finale.json live: the board of the seven hours only, the artist out', async () => {
-  const deps = stand(Date.parse('2026-11-12T18:00:00Z'));
-  deps.map.set('finale-3.json', JSON.stringify(PICK));
+  const deps = stand(Date.parse('2026-11-13T18:00:00Z'));
+  deps.map.set('finale-3.json', JSON.stringify({ ...PICK, bonus: '+ 10 coffees by K4NCUN0 for the top 10' }));
   const d = await live(deps);
   assert.equal(d.finale.state, 'live');
   assert.deepEqual(d.finale.top.map((r) => [r.rank, r.name, r.eth]).slice(0, 2), [[1, 'one.eth', '0.04'], [2, '0x0202…0202', '0.025']]);
-  assert.match(deps.asked[0] as string, /from=2026-11-12T16%3A00%3A00.000Z&to=2026-11-12T23%3A00%3A00.000Z/);
+  assert.equal(d.finale.bonus, '+ 10 coffees by K4NCUN0 for the top 10');
+  assert.match(deps.asked[0] as string, /from=2026-11-13T16%3A00%3A00.000Z&to=2026-11-13T23%3A00%3A00.000Z/);
 });
 
 test('/finale.json after: the winners kept with the week, and the next finale', async () => {
-  const deps = stand(Date.parse('2026-11-13T10:00:00Z'));
+  const deps = stand(Date.parse('2026-11-14T10:00:00Z'));
   deps.map.set('finale-3.json', JSON.stringify(PICK));
   deps.map.set('finale-4.json', JSON.stringify({ ...PICK, n: 4, title: 'NEXT ONE' }));
   deps.map.set('week-3.json', JSON.stringify({ plan: finalePlan(), status: 'due', computedAt: 'x' }));
@@ -152,7 +183,7 @@ test('/finale.json after: the winners kept with the week, and the next finale', 
   assert.equal(d.finale.n, 3);
   assert.equal(d.finale.top.length, 5);
   assert.equal(d.finale.next?.game?.title, 'NEXT ONE');
-  assert.equal(d.finale.next?.from, '2026-11-19T16:00:00.000Z');
+  assert.equal(d.finale.next?.from, '2026-11-20T16:00:00.000Z');
   assert.equal(deps.asked.length, 0);
 });
 
@@ -180,12 +211,12 @@ test('PAY\'s check: the week\'s send with the finale is paid, a send without it 
 });
 
 test('a closed week carries its finale: PAY\'s week is calculated with the winners of the seven hours', async () => {
-  const deps = stand(Date.parse('2026-11-13T10:00:00Z'));
+  const deps = stand(Date.parse('2026-11-14T10:00:00Z'));
   deps.map.set('finale-3.json', JSON.stringify(PICK));
   deps.map.set('week-1.json', '{"plan":{"n":1},"status":"paid"}'); deps.map.set('week-2.json', '{"plan":{"n":2},"status":"paid"}');
   const r = await adminJackpot(deps, { action: 'jackpot' }, 'admin') as { body: { weeks: WeekRecord[] } };
   const week3 = r.body.weeks.find((w) => w.plan?.n === 3);
   assert.equal(week3?.plan.finale?.winners.length, 5);
   assert.equal(ethOf(week3?.plan.sendWei ?? '0'), '0.1');
-  assert.ok(deps.asked.some((u) => u.includes('from=2026-11-12T16%3A00')));
+  assert.ok(deps.asked.some((u) => u.includes('from=2026-11-13T16%3A00')));
 });

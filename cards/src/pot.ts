@@ -1,5 +1,5 @@
 // THE WALL ARCADE's jackpot: the treasury wallet's balance, live (independent of Netlify: netlify/functions/pot.mts
-// plugs in Netlify Blobs and fetch). Every paid play goes straight into it; every Thursday at 23:00 Lisbon the week closes, and it is split by hand.
+// plugs in Netlify Blobs and fetch). Every paid play goes straight into it; every Friday at 23:00 Lisbon the week closes, and it is split by hand.
 // If no public RPC answers, the last amount served is served again; with none, an error (the hub keeps "— ETH").
 // Nothing of the former arcade (packs, coins, its own pot) is read or reused.
 export const TREASURY = '0xb6ede0158e1792ed25e1367edeec05a824d7c9ad';

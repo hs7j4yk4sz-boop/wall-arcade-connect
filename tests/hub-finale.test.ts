@@ -11,9 +11,9 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 
 const CHROME = [process.env.CHROME_PATH, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find((p) => p && existsSync(p));
 const HUB = 'https://thewallarcade.superrare.com', DRAFT = 'https://finale--wall-arcade-cards.netlify.app';
-const GAME = { slug: 'gate-rush', title: 'GATE RUSH', artist: 'K4NCUN0', origin: 'https://f523stv7.srstudio.dev' };
+const GAME = { slug: 'dirty-signals-radio', title: 'Dirty Signals Radio', artist: 'Bully Meow', origin: 'https://sy3mgnnh.srstudio.dev' };
 const row = (rank: number): unknown => ({ rank, name: `<b>p${rank}</b>`, score: 1000 - rank, eth: '0.02' });
-const doc = (plays: number, finale: Record<string, unknown>): unknown => ({ updatedAt: 'x', week: { n: 3 }, plays, finaleEth: '0.1000', addEth: (plays * 5 / 1e5).toFixed(5), welcomeLeft: 100, finale: { n: 3, from: new Date(Date.now() + 864e5).toISOString(), to: new Date(Date.now() + 9e7).toISOString(), game: GAME, places: 5, prizesEth: ['0.04', '0.025', '0.015', '0.012', '0.008'], top: [], next: null, ...finale } });
+const doc = (plays: number, finale: Record<string, unknown>): unknown => ({ updatedAt: 'x', week: { n: 3 }, plays, finaleEth: '0.1000', addEth: (plays * 5 / 1e5).toFixed(5), welcomeLeft: 100, finale: { n: 3, from: new Date(Date.now() + 864e5).toISOString(), to: new Date(Date.now() + 9e7).toISOString(), game: GAME, bonus: null, places: 5, prizesEth: ['0.04', '0.025', '0.015', '0.012', '0.008'], top: [], next: null, ...finale } });
 
 function built(preview: boolean): Record<string, Uint8Array> {
   const out = join(mkdtempSync(join(tmpdir(), 'hub-')), 'hub.zip');
@@ -71,12 +71,24 @@ test('one play: "1 play"; the counter follows the service', { skip: !CHROME }, a
 
 test('before: the game, its countdown, PRACTICE; no board', { skip: !CHROME }, async () => {
   const page = await open(HUB, real, '/', () => doc(0, { state: 'before' }));
-  assert.equal(await page.locator('#fGame').innerText(), 'GATE RUSH');
+  assert.equal(await page.locator('#fGame').innerText(), 'DIRTY SIGNALS RADIO');
   assert.match(await page.locator('#fCount').innerText(), /^OPENS IN 0D 23:59/);
   assert.equal(await page.locator('#fPlay').getAttribute('href'), `${GAME.origin}/`);
   assert.match(await page.locator('#fPlay').innerText(), /PRACTICE/);
   assert.equal(await page.locator('#fTop').isVisible(), false);
   await page.context().close();
+});
+
+test('the start in three cities, and the bonus line under the prizes', { skip: !CHROME }, async () => {
+  const page = await open(HUB, real, '/', () => doc(0, { state: 'before', from: '2027-11-12T16:00:00.000Z', to: '2027-11-12T23:00:00.000Z', bonus: '+ 10 coffees by Bully Meow for the top 10' }));
+  assert.equal(await page.locator('#fLabel').textContent(), 'The Finale · FRI NOV 12 · 4PM LISBON · 8AM SF · 11AM NY');
+  assert.equal(await page.locator('#fBonus').innerText(), '+ 10 coffees by Bully Meow for the top 10');
+  await page.context().close();
+  // the week the US is still on summer time and Lisbon is not
+  const odd = await open(HUB, real, '/', () => doc(0, { state: 'before', from: '2027-11-05T16:00:00.000Z', to: '2027-11-05T23:00:00.000Z' }));
+  assert.equal(await odd.locator('#fLabel').textContent(), 'The Finale · FRI NOV 5 · 4PM LISBON · 9AM SF · 12PM NY');
+  assert.equal(await odd.locator('#fBonus').isVisible(), false);
+  await odd.context().close();
 });
 
 test('no game picked: to be announced, no link', { skip: !CHROME }, async () => {
@@ -100,10 +112,10 @@ test('live: yellow, the top 5, names as text; a board with no score says so', { 
 });
 
 test('after: the winners with their amounts and the next finale', { skip: !CHROME }, async () => {
-  const page = await open(HUB, real, '/', () => doc(0, { state: 'after', top: [1, 2, 3].map(row), next: { from: '2026-11-19T16:00:00.000Z', to: '2026-11-19T23:00:00.000Z', game: { ...GAME, title: 'NEXT' } } }));
+  const page = await open(HUB, real, '/', () => doc(0, { state: 'after', top: [1, 2, 3].map(row), next: { from: '2026-11-20T16:00:00.000Z', to: '2026-11-20T23:00:00.000Z', game: { ...GAME, title: 'NEXT' } } }));
   assert.match(await page.locator('#fLabel').innerText(), /week 3/i);
   assert.equal(await page.locator('#fCount').innerText(), 'CLOSED');
-  assert.match(await page.locator('#fWhat').innerText(), /Next Finale: NEXT, Thu 19 Nov, 16:00 Lisbon/);
+  assert.match(await page.locator('#fWhat').innerText(), /Next Finale: NEXT, FRI NOV 20 · 4PM LISBON · 8AM SF · 11AM NY\./);
   assert.match(await page.locator('#fTop').innerText(), /0\.02 ETH/);
   await page.context().close();
 });

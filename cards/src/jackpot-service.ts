@@ -1,18 +1,19 @@
 // The jackpot on the card service: the sources of cards/src/jackpot.ts, and what is kept of each week (store "jackpot").
 //   every 15 minutes (netlify/functions/jackpot-refresh.mts): earnings.json, the week so far; and each week that has just
-//                             closed (Thursday 23:00 Lisbon) is calculated and kept as week-<n>.json, due
+//                             closed (Friday 23:00 Lisbon) is calculated and kept as week-<n>.json, due; PAY on Saturday
 //   GET  /earnings.json       the public page's document (hub/earnings.html), read from the store
 //   GET  /finale.json         the hub's live document, read from the sources: the plays of the week and the FINALE block
 //   POST /api/admin           jackpot: the weeks; jackpot-recompute: a week not sent yet, again; jackpot-paid: the hash of
 //                             the payment; jackpot-clear: forget a send that never went through; finale: the weeks to
 //                             come and the games to pick from; finale-pick: a week's game, until its finale starts;
-//                             jackpot-manual: a week paid by hand, its hashes (each mined and successful), no PAY after
+//                             jackpot-manual: a week paid by hand, its hashes (each mined and successful), no PAY after;
+//                             finale-top10: a closed finale's top 10 (rank, wallet, ENS, score) as CSV, for the coffees
 // No key here: the treasury signs in the admin page, in its own wallet. The service only reads the chain: a week is paid when
 // a mined transaction from the treasury to Disperse carries exactly its lines, plus one line of its wall amount (that line's
 // address is the wall's, typed in the page). A week with a hash, or marked paid by hand, cannot be paid again.
 import { decodeDisperse, DISPERSE } from './disperse.js';
 import { readGames, WALLET, type Game, type GamesStore } from './games.js';
-import { candidates, FINALE_WEI, finaleStage, finaleWindow, PLACES, PRIZES_WEI, playsEth, rowsOf, topFive, type Entry, type FinalePick, type FinaleRow, type Winner } from './finale.js';
+import { candidates, csvOf, FINALE_WEI, finaleStage, finaleWindow, PLACES, PRIZES_WEI, playsEth, rowsOf, topFive, topTen, type Entry, type FinalePick, type FinaleRow, type TopRow, type Winner } from './finale.js';
 import { buildPlan, closedWeeks, earningsOf, ethOf, numberedWeek, shortWallet, type Best, type NumberedWeek, type Plan } from './jackpot.js';
 import { TREASURY } from './pot.js';
 import { clientOf, usageOf } from './stats-sources.js';
@@ -46,14 +47,16 @@ const pickKey = (n: number): string => `finale-${n}.json`;
 async function readPick(deps: JackpotDeps, n: number): Promise<FinalePick | null> {
   return JSON.parse((await deps.store.getText(pickKey(n))) ?? 'null') as FinalePick | null;
 }
-/** The top 5 of a finale's seven hours. Throws when the board cannot be read. */
-async function winnersOf(deps: JackpotDeps, pick: FinalePick, week: NumberedWeek): Promise<Winner[]> {
+/** The board of a finale's seven hours (ten lines at most). Throws when it cannot be read. */
+async function boardOf(deps: JackpotDeps, pick: FinalePick, week: NumberedWeek): Promise<Entry[]> {
   const window = finaleWindow(week);
   if (!window) return [];
   const r = await deps.fetch(`${pick.origin}/api/v1/games/${pick.appId}/scoring/leaderboard?from=${encodeURIComponent(window.from)}&to=${encodeURIComponent(window.to)}`, { signal: AbortSignal.timeout(6000) });
   if (!r.ok) throw new Error(`${pick.title}: HTTP ${r.status}`);
-  return topFive(((await r.json()) as { entries?: Entry[] }).entries ?? [], pick.artistWallet);
+  return ((await r.json()) as { entries?: Entry[] }).entries ?? [];
 }
+/** The top 5 of a finale's seven hours. Throws when the board cannot be read. */
+const winnersOf = async (deps: JackpotDeps, pick: FinalePick, week: NumberedWeek): Promise<Winner[]> => topFive(await boardOf(deps, pick, week), pick.artistWallet);
 
 /** The week from the sources. Strict: a report or a board that cannot be read throws, so no week is ever kept with a hole in it. */
 async function planOf(deps: JackpotDeps, week: NumberedWeek, opts: { strict: boolean; everyGame: boolean }): Promise<Plan> {
@@ -112,7 +115,7 @@ export async function handleEarnings(deps: JackpotDeps): Promise<Response> {
 }
 
 export type LiveGame = { slug: string; title: string; artist: string; origin: string };
-export type LiveFinale = { state: 'before' | 'live' | 'after'; n: number; from: string; to: string; game: LiveGame | null; places: number; prizesEth: string[]; top: FinaleRow[]; next: { from: string; to: string; game: LiveGame | null } | null };
+export type LiveFinale = { state: 'before' | 'live' | 'after'; n: number; from: string; to: string; game: LiveGame | null; bonus: string | null; places: number; prizesEth: string[]; top: FinaleRow[]; next: { from: string; to: string; game: LiveGame | null } | null };
 export type LiveDoc = { updatedAt: string; week: NumberedWeek; plays: number; finaleEth: string; addEth: string; finale: LiveFinale | null; welcomeLeft: number };
 const gameOf = (pick: FinalePick | null): LiveGame | null => (pick ? { slug: pick.slug, title: pick.title, artist: pick.artist, origin: pick.origin } : null);
 export const WELCOME_CAP = 100;                                 // new wallets a week (cards/src/credits-service.ts)
@@ -138,7 +141,7 @@ async function readLive(deps: JackpotDeps): Promise<LiveDoc> {
   const coming = finaleWindow(week);
   return {
     updatedAt: new Date(now).toISOString(), week, plays, finaleEth: '0.1000', addEth: playsEth(plays), welcomeLeft,
-    finale: { state: stage, n: shown.n, ...window, game: gameOf(chosen), places: PLACES, prizesEth: PRIZES_WEI.map(ethOf), top, next: stage === 'after' && coming ? { ...coming, game: gameOf(pick) } : null },
+    finale: { state: stage, n: shown.n, ...window, game: gameOf(chosen), bonus: chosen?.bonus ?? null, places: PLACES, prizesEth: PRIZES_WEI.map(ethOf), top, next: stage === 'after' && coming ? { ...coming, game: gameOf(pick) } : null },
   };
 }
 
@@ -156,10 +159,19 @@ export async function handleFinale(deps: JackpotDeps): Promise<Response> {
   }
 }
 
-/** The admin page's FINALE section: this week and the three to come, each with its game; a finale that has started stays as it is. */
+/** The admin page's FINALE section: the finale just closed (its top 10 as CSV), this week and the three to come, each with its game
+ *  and its bonus line; a finale that has started stays as it is. */
 async function adminFinale(deps: JackpotDeps, body: Record<string, unknown>, admin: string): Promise<{ status: number; body: unknown }> {
   const now = deps.now(), weeks: NumberedWeek[] = [numberedWeek(now)];
   for (let i = 0; i < 3; i++) weeks.push(numberedWeek(Date.parse((weeks[i] as NumberedWeek).to)));
+  const last = closedWeeks(now).at(-1);
+  if (body.action === 'finale-top10') {
+    const week = closedWeeks(now).find((w) => w.n === body.week), pick = week ? await readPick(deps, week.n) : null;
+    if (!week || !pick || !finaleWindow(week)) return { status: 400, body: { error: 'No finale closed for that week.' } };
+    let rows: TopRow[];
+    try { rows = topTen(await boardOf(deps, pick, week), pick.artistWallet); } catch { return { status: 502, body: { error: 'The finale\'s board cannot be read right now: try again.' } }; }
+    return { status: 200, body: { ok: true, n: week.n, title: pick.title, rows, csv: csvOf(rows) } };
+  }
   const games = await readGames(deps.games as GamesStore), offered = candidates(games);
   const open = (w: NumberedWeek): boolean => { const window = finaleWindow(w); return Boolean(window) && now < Date.parse((window as { from: string }).from); };
   if (body.action === 'finale-pick') {
@@ -170,11 +182,13 @@ async function adminFinale(deps: JackpotDeps, body: Record<string, unknown>, adm
     else {
       const game = offered.find((g) => g.appId === body.appId);
       if (!game) return { status: 400, body: { error: 'Not an artist\'s live game with a wallet.' } };
-      const pick: FinalePick = { n: week.n, appId: game.appId, slug: game.slug, title: game.title, origin: game.origin, artist: game.artist.name, artistWallet: (game.payoutWallet as string).toLowerCase(), by: admin, at: new Date(now).toISOString() };
+      const bonus = typeof body.bonus === 'string' ? body.bonus.trim().replace(/\s+/g, ' ').slice(0, 120) : '';
+      const pick: FinalePick = { n: week.n, appId: game.appId, slug: game.slug, title: game.title, origin: game.origin, artist: game.artist.name, artistWallet: (game.payoutWallet as string).toLowerCase(), by: admin, at: new Date(now).toISOString(), ...(bonus ? { bonus } : {}) };
       await deps.store.set(pickKey(week.n), JSON.stringify(pick));
     }
   }
-  const rows = await Promise.all(weeks.map(async (w) => ({ n: w.n, from: finaleWindow(w)?.from ?? null, to: w.to, open: open(w), pick: await readPick(deps, w.n) })));
+  const shown = last && finaleWindow(last) ? [last, ...weeks] : weeks;
+  const rows = await Promise.all(shown.map(async (w) => ({ n: w.n, from: finaleWindow(w)?.from ?? null, to: w.to, open: open(w), closed: Date.parse(w.to) <= now, pick: await readPick(deps, w.n) })));
   return { status: 200, body: { ok: true, finales: rows, offered: offered.map((g) => ({ appId: g.appId, title: g.title, artist: g.artist.name })) } };
 }
 

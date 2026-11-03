@@ -63,7 +63,7 @@ During a run the bar goes away (a discreet ← in a corner): the score, big, and
 painted; the first full row of a FULL ROW run gets a short ROW PAINTED moment. After a run, both games show the card
 itself (`src/share/end-screen.ts`, drawn in the page by the same `src/share/card-draw.ts` as the card service), POST ON
 X in blue under it, then PLAY AGAIN in ink (the page passes its end figures through the optional `Stage.endStats`).
-The leaderboard is THIS WEEK's everywhere (Thursday 23:00 to Thursday 23:00, Lisbon, one closing for every game; `src/shell/week.ts`), names are ENS
+The leaderboard is THIS WEEK's everywhere (Friday 23:00 to Friday 23:00, Lisbon, one closing for every game; `src/shell/week.ts`), names are ENS
 when the platform resolved one.
 
 **POST ON X** (`src/share/post.ts`): one link to `x.com/intent/post` with the tweet written (X handles of the names
@@ -147,21 +147,23 @@ ten minutes at most each. No secret: the clip goes to `POST /api/clip` with the 
 checks against GitHub's keys (`cards/src/clip-upload.ts`: this repository, main, this workflow). A failed clip changes
 nothing, the still stays, and the next night tries again.
 
-**THE FINALE:** each week from week 2, one artist's game has its last seven hours, Thursday 16:00 to 23:00 Lisbon: 0.1 ETH from
+**THE FINALE:** each week from week 2, one artist's game has its last seven hours, Friday 16:00 to 23:00 Lisbon: 0.1 ETH from
 NFC to the top 5 of those hours, 0.04 / 0.025 / 0.015 / 0.012 / 0.008 ETH, the artist out of their own prizes. The admin page picks the game
 (`cards/src/finale.ts`), the hub's first block and its prizes counter read `/finale.json`, and the winners go out with the week
-in PAY's one send, from the treasury, which must hold that 0.1 ETH. Not public yet: `FINALE_PUBLIC = false` until John's GO (the
-artists agreed, the visual validated on the draft, `cards/scripts/deploy-draft.sh`): `/finale.json` has no finale, the hub shows
-the plays alone, and PAY pays no finale. The admin page can pick the games already.
+in PAY's one send, from the treasury, which must hold that 0.1 ETH. The admin's pick can carry one bonus line, shown under the
+prizes ("+ 10 coffees by Bully Meow for the top 10"); once a finale has closed, the admin page downloads its top 10 (rank,
+wallet, ENS, score) as CSV, the artist left out. The hub dates it in three cities ("FRI NOV 6 · 4PM LISBON · 8AM SF · 11AM NY").
+`FINALE_PUBLIC` switches it all off: `/finale.json` without a finale, the hub with the plays alone, PAY without a finale; a draft
+(`cards/scripts/deploy-draft.sh`) always shows it.
 
-**THE FREE CREDITS** (`cards/src/credits-service.ts`): 3 to each wallet holding a name, every Friday from 00:00 Lisbon, 25 grants
+**THE FREE CREDITS** (`cards/src/credits-service.ts`): 3 to each wallet holding a name, every Friday as soon as the week closes at 23:00 Lisbon, 25 grants
 per pass; 5 to a new wallet, once, from the hub's GET 5 FREE PLAYS, 100 wallets a week.
 
 **A preview:** `cards/scripts/deploy-draft.sh [alias]` puts the hub on a Netlify draft of the card service, no `--prod`, no
 `rare-profile`. Blobs are shared by every deploy of a site, so a draft holds only `cards/netlify/draft-functions` (read-only) and
 no scheduled function. `?demo=before|live|after` and the admin page's stand-ins exist only in that build.
 
-**JACKPOT, in the admin page:** every Thursday at 23:00 Lisbon the card service calculates the week that closed
+**JACKPOT, in the admin page:** every Friday at 23:00 Lisbon the card service calculates the week that closed, paid on Saturday
 (`cards/src/jackpot.ts`, the scheduled pass of `netlify/functions/jackpot-refresh.mts` every 15 minutes, kept as
 `week-<n>.json` in the store "jackpot"): by game, the credits played (SuperRare's usage report) × 0.0001 ETH, a pack
 divided by 50; 50% to the week's best score, 40% to the artist (`payoutWallet` of games.json; our own games: to the
@@ -261,7 +263,7 @@ the fonts, the dragon, and a 20-line example that walks a sprite on a canvas (`h
 
 ## The jackpot and the split
 
-Every paid play goes straight into the jackpot. Every Thursday at 23:00 Lisbon it's split: half to the best score on each game, 40% to the artists who made the games (their payout wallets: [The artists' games](#the-artists-games)), 10% to the wall. It is stated once in each place a player or an artist reads it: the games' (i) and the kit. It replaces the original 50/35/15 split.
+Every paid play goes straight into the jackpot. Every Friday at 23:00 Lisbon the week closes, and on Saturday it's split: half to the best score on each game, 40% to the artists who made the games (their payout wallets: [The artists' games](#the-artists-games)), 10% to the wall. It is stated once in each place a player or an artist reads it: the games' (i) and the kit. It replaces the original 50/35/15 split.
 
 The jackpot shown is the treasury wallet's balance (0xb6ede0158e1792ed25e1367edeec05a824d7c9ad), live: the card
 service's own `GET https://wall-arcade-cards.netlify.app/pot` (`cards/src/pot.ts`) reads it by a public RPC and answers

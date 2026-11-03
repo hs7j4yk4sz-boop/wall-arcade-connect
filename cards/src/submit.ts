@@ -224,7 +224,7 @@ export async function handleAdmin(request: Request, deps: SubmitDeps): Promise<R
   const games = await readGames(deps.games);
   if (body.action === 'whoami') return json({ admin: true, wallet, games }, 200, h);
   if (body.action === 'add') { const r = await addGame(deps, body, wallet); return json(r.body, r.status, h); }
-  if (typeof body.action === 'string' && /^(jackpot(-recompute|-paid|-clear|-manual)?|finale(-pick)?)$/.test(body.action) && deps.jackpot) { const r = await deps.jackpot(body, wallet); return json(r.body, r.status, h); }
+  if (typeof body.action === 'string' && /^(jackpot(-recompute|-paid|-clear|-manual)?|finale(-pick|-top10)?)$/.test(body.action) && deps.jackpot) { const r = await deps.jackpot(body, wallet); return json(r.body, r.status, h); }
   const appId = typeof body.appId === 'string' ? body.appId : '';
   if (body.action === 'attach' || body.action === 'shoot') {
     const game = games.find((g) => g.appId === appId);

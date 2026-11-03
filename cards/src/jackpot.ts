@@ -23,8 +23,10 @@ export type Plan = NumberedWeek & { credits: number; totalWei: string; games: Ga
 
 /** The week holding `now`, numbered as on the hub: week 1 is the long first one, then one a week. */
 export function numberedWeek(now: number): NumberedWeek {
-  const week = lisbonWeek(now), first = lisbonWeek(0);
-  return { ...week, n: week.from === first.from ? 1 : 2 + Math.ceil((Date.parse(week.from) - Date.parse(first.to) - 2 * 3_600_000) / WEEK_MS) };   // week 2 is short; two hours of room for a DST change
+  const week = lisbonWeek(now), first = lisbonWeek(0), second = lisbonWeek(Date.parse(first.to));
+  if (week.from === first.from) return { ...week, n: 1 };
+  if (week.from === second.from) return { ...week, n: 2 };
+  return { ...week, n: 3 + Math.round((Date.parse(week.from) - Date.parse(second.to)) / WEEK_MS) };   // weeks 1 and 2 are odd lengths; a DST change moves an end by an hour
 }
 /** Every week closed at `now`, oldest first. */
 export function closedWeeks(now: number): NumberedWeek[] {

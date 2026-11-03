@@ -82,7 +82,7 @@ function page(origin: string, id: string, card: Card): string {
 }
 
 class BoardUnavailable extends Error {}
-/** The rows of a board card come from the platform's public leaderboard (top 10 of THIS WEEK, Thursday 23:00 Lisbon): the top 5, plus the
+/** The rows of a board card come from the platform's public leaderboard (top 10 of THIS WEEK, Friday 23:00 Lisbon): the top 5, plus the
  *  highlighted player's own line when they rank lower. */
 async function boardFromPlatform(asked: BoardRequest, deps: Deps, group: Group): Promise<BoardCard> {
   const key = gameKey(asked.game, group);

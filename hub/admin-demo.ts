@@ -1,7 +1,7 @@
 // The preview's admin page (scripts/build-hub.ts --preview swaps hub/admin-env.ts for this file; never in the real page): the
 // card service is a stand-in in memory, with made-up players, and the wallet another: nothing here can reach a chain, a real
 // wallet or the service. The numbers come from the real calculation (cards/src/jackpot.ts, cards/src/finale.ts).
-import { FINALE_WEI, topFive } from '../cards/src/finale.js';
+import { csvOf, FINALE_WEI, topFive, topTen } from '../cards/src/finale.js';
 import type { Game } from '../cards/src/games.js';
 import { buildPlan } from '../cards/src/jackpot.js';
 
@@ -10,7 +10,7 @@ const fake = (n: number): string => `0x${String(n).repeat(40).slice(0, 40)}`;
 const uuid = (n: number): string => `00000000-0000-4000-8000-00000000000${n}`;
 const game = (n: number, title: string, artist: string, wallet: string | null): Game => ({ appId: uuid(n), origin: `https://demo${n}.srstudio.dev`, slug: `demo-${n}`, title, line: 'A made-up game of the preview.', artist: { name: artist, panel: null }, payoutWallet: wallet, submittedAt: null, attachedAt: null, status: 'live', publishedAt: null, shot: null, order: n });
 const GAMES = [game(1, 'UNBREAKABLE', 'ON THE WALL', null), game(2, 'GATE RUSH', 'Demo Artist', fake(9)), game(3, 'ROLL CALL RUN', 'Other Artist', fake(8))];
-const WEEK = { n: 2, from: '2026-10-30T15:00:00.000Z', to: '2026-11-05T23:00:00.000Z' };
+const WEEK = { n: 2, from: '2026-10-30T15:00:00.000Z', to: '2026-11-06T23:00:00.000Z' };
 const PICK = { n: 2, appId: uuid(2), slug: 'demo-2', title: 'GATE RUSH', origin: 'https://demo2.srstudio.dev', artist: 'Demo Artist', artistWallet: fake(9), by: 'demo', at: WEEK.from };
 const entry = (n: number, name: string, score: number): { player: { kind: string; id: string; ensName: string }; score: string } => ({ player: { kind: 'wallet', id: fake(n), ensName: name }, score: String(score) });
 const WINNERS = topFive([entry(9, 'demo-artist.eth', 9800), entry(1, 'player-one.eth', 9120), entry(2, 'player-two.eth', 8760), entry(3, 'player-three.eth', 7340), entry(4, 'player-four.eth', 6010), entry(5, 'player-five.eth', 5525), entry(6, 'player-six.eth', 900)], fake(9));
@@ -18,8 +18,9 @@ const best = (n: number, name: string, score: number): { wallet: string; name: s
 const PLAN = buildPlan(WEEK, { [uuid(1)]: 96, [uuid(2)]: 214, [uuid(3)]: 41 }, GAMES, { [uuid(1)]: best(1, 'player-one.eth', 2432), [uuid(2)]: best(2, 'player-two.eth', 41596), [uuid(3)]: best(6, 'player-six.eth', 870) }, false, { pick: PICK, winners: WINNERS, prizeWei: FINALE_WEI });
 
 let week: Record<string, unknown> = { plan: PLAN, status: 'due', computedAt: WEEK.to };
-const later = Date.UTC(2026, 10, 12, 16), finale = (n: number, i: number): { n: number; from: string; to: string; open: boolean; pick: { appId: string; title: string; artist: string } | null } => ({ n, from: new Date(later + i * 7 * 86_400_000).toISOString(), to: new Date(later + i * 7 * 86_400_000 + 7 * 3_600_000).toISOString(), open: true, pick: null });
-const finales = [{ n: 2, from: '2026-11-05T16:00:00.000Z', to: WEEK.to, open: false, pick: { appId: uuid(2), title: 'GATE RUSH', artist: 'Demo Artist' } }, finale(3, 0), finale(4, 1), finale(5, 2)];
+const later = Date.UTC(2026, 10, 13, 16), finale = (n: number, i: number): { n: number; from: string; to: string; open: boolean; pick: { appId: string; title: string; artist: string } | null } => ({ n, from: new Date(later + i * 7 * 86_400_000).toISOString(), to: new Date(later + i * 7 * 86_400_000 + 7 * 3_600_000).toISOString(), open: true, pick: null });
+const BOARD = [entry(9, 'demo-artist.eth', 9800), ...[9120, 8760, 7340, 6010, 5525, 4410, 3980, 2215, 1870, 900].map((score, i) => entry(i + 1, i % 3 === 2 ? '' : `player-${i + 1}.eth`, score))];
+const finales: { n: number; from: string; to: string; open: boolean; closed?: boolean; pick: { appId: string; title: string; artist: string; bonus?: string } | null }[] = [{ n: 2, from: '2026-11-06T16:00:00.000Z', to: WEEK.to, open: false, closed: true, pick: { appId: uuid(2), title: 'GATE RUSH', artist: 'Demo Artist', bonus: '+ 10 coffees by Demo Artist for the top 10' } }, finale(3, 0), finale(4, 1), finale(5, 2)];
 const offered = GAMES.filter((g) => g.payoutWallet).map((g) => ({ appId: g.appId, title: g.title, artist: g.artist.name }));
 const weeks = (): unknown => ({ ok: true, weeks: [week], treasury: TREASURY, disperse: DISPERSE });
 
@@ -38,9 +39,11 @@ export const demo = {
   async call(body: Record<string, unknown>): Promise<{ code: number; data: unknown }> {
     if (body.action === 'whoami') return { code: 200, data: { wallet: `${TREASURY} (preview)`, games: GAMES } };
     if (body.action === 'finale') return { code: 200, data: { ok: true, finales, offered } };
+    if (body.action === 'finale-top10') { const rows = topTen(BOARD, fake(9)); return { code: 200, data: { ok: true, n: 2, title: 'GATE RUSH', rows, csv: csvOf(rows) } }; }
     if (body.action === 'finale-pick') {
       const row = finales.find((f) => f.n === body.week), chosen = offered.find((g) => g.appId === body.appId) ?? null;
-      if (row) row.pick = chosen && { appId: chosen.appId, title: chosen.title, artist: chosen.artist };
+      const bonus = typeof body.bonus === 'string' ? body.bonus.trim() : '';
+      if (row) row.pick = chosen && { appId: chosen.appId, title: chosen.title, artist: chosen.artist, ...(bonus ? { bonus } : {}) };
       return { code: 200, data: { ok: true, finales, offered } };
     }
     if (body.action === 'jackpot-paid') week = { ...week, status: 'paid', hash: body.hash, wall: '0x00000000000000000000000000000000000a11ce', paidAt: new Date().toISOString() };

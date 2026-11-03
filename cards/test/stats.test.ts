@@ -224,17 +224,17 @@ test('with a token: one line per app of the group, named by the usage report or 
   assert.doesNotMatch(html, /slk_test/);
 });
 
-test('this week is the leaderboard\'s week (src/shell/week.ts): week 1 to Friday 30 Oct 15:00, week 2 to Thursday 5 Nov 23:00, then Thursday to Thursday', async () => {
+test('this week is the leaderboard\'s week (src/shell/week.ts): week 1 to Friday 30 Oct 15:00, week 2 to Friday 6 Nov 23:00, then Friday to Friday', async () => {
   const games = await import('../../src/shell/week.js');
-  for (const iso of ['2026-10-27T19:00:00Z', '2026-10-30T14:59:00Z', '2026-10-30T15:00:00Z', '2026-11-04T12:00:00Z', '2026-11-05T23:30:00Z']) {
+  for (const iso of ['2026-10-27T19:00:00Z', '2026-10-30T14:59:00Z', '2026-10-30T15:00:00Z', '2026-11-04T12:00:00Z', '2026-11-05T23:30:00Z', '2026-11-06T23:30:00Z']) {
     const week = windows(at(iso)).find((w) => w.key === 'week') as { from: number; to: number };
     const theirs = games.lisbonWeek(at(iso));
     assert.deepEqual([new Date(week.from).toISOString(), new Date(week.to).toISOString()], [theirs.from, theirs.to], iso);
   }
   const later = windows(at('2026-11-04T12:00:00Z')).find((w) => w.key === 'week') as { from: number; to: number };
-  assert.deepEqual([new Date(later.from).toISOString(), new Date(later.to).toISOString()], ['2026-10-30T15:00:00.000Z', '2026-11-05T23:00:00.000Z']);
+  assert.deepEqual([new Date(later.from).toISOString(), new Date(later.to).toISOString()], ['2026-10-30T15:00:00.000Z', '2026-11-06T23:00:00.000Z']);
   const s = buildStats({ now: at('2026-11-04T12:00:00Z'), games: [], events: [], usage: {}, holders: new Set(), packs: [], leaderboards: {}, pot: null, people: null, sources: {} });
-  assert.equal((s.windows.week as any).to, '2026-11-05T23:00:00.000Z');                 // its real end, not "now"
+  assert.equal((s.windows.week as any).to, '2026-11-06T23:00:00.000Z');                 // its real end, not "now"
 });
 
 test('the credit group as /stats last read it opens the card service: its pages, its games (cards/src/group.ts), ours always', async () => {

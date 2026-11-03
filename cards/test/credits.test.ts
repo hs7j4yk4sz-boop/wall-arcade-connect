@@ -12,11 +12,11 @@ function stand(now: number, holders: string[] = []): CreditDeps & { map: Map<str
     holders: async () => holders, seen: async () => [wallet(900).toUpperCase().replace('0X', '0x')] };
   return deps;
 }
-const FRIDAY = Date.parse('2026-11-06T00:00:00Z');
+const FRIDAY = Date.parse('2026-11-06T23:00:00Z');   // week 3 opens: Friday 23:00 Lisbon (UTC+0 in winter)
 
-test('the recharge: nothing before Friday 00:00 Lisbon, nor before the first Thursday week', async () => {
+test('the recharge: as soon as the week closes on Friday 23:00 Lisbon, nothing before, nor before the first Friday week', async () => {
   const holders = [wallet(1)];
-  assert.equal(await rechargeHolders(stand(Date.parse('2026-11-05T23:59:59Z'), holders)), null);
+  assert.equal(await rechargeHolders(stand(Date.parse('2026-11-06T22:59:59Z'), holders)), null);
   assert.equal(await rechargeHolders(stand(Date.parse('2026-11-01T12:00:00Z'), holders)), null);
   const deps = stand(FRIDAY, holders);
   await rechargeHolders(deps);
@@ -32,7 +32,7 @@ test('25 grants a pass, each wallet once a week, finished once; next Friday agai
   assert.equal(new Set(deps.grants.map((g) => g.idempotencyKey)).size, 60);
   assert.equal(deps.map.get('granted.json'), '180');
   assert.ok((JSON.parse(deps.map.get('recharge-3.json') as string) as Recharge).finishedAt);
-  deps.at.now = Date.parse('2026-11-13T00:00:00Z');
+  deps.at.now = Date.parse('2026-11-13T23:00:00Z');
   await rechargeHolders(deps);
   assert.equal(deps.grants.length, 60 + BATCH);
   assert.ok(deps.grants.at(-1)?.idempotencyKey.startsWith('wall-holders-week-4-'));
@@ -73,7 +73,7 @@ test('100 wallets a week, then next week', async () => {
   deps.map.set('welcome-week-3.json', '99');
   assert.equal((await welcome(deps, wallet(1))).left, 0);
   assert.equal((await welcome(deps, wallet(2))).state, 'full');
-  deps.at.now = Date.parse('2026-11-12T23:00:00Z');
+  deps.at.now = Date.parse('2026-11-13T23:00:00Z');
   assert.equal((await welcome(deps, wallet(2))).state, 'granted');
 });
 
