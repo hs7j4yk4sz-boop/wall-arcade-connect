@@ -28,7 +28,7 @@ test('with the pots: the biggest first, the game of the week left out, a game th
   const pots: Pot[] = [{ slug: 'the-morning-brew', plays: 9, potEth: '0.00045', leader: { name: '<i>x</i>', score: 12345 } }, { slug: 'dirty-signals-radio', plays: 4, potEth: '0.00020', leader: null }, { slug: 'unbreakable', plays: 1, potEth: '0.00005', leader: null }];
   const html = draw.gameList(seed, CLIPS, pots, 'dirty-signals-radio');
   assert.deepEqual(titles(html), ['THE MORNING BREW NEW', 'UNBREAKABLE', 'FULL ROW']);
-  assert.match(html, /Pot <b>0\.00045 ETH<\/b><\/p><p class="lead">Leader &lt;i&gt;x&lt;\/i&gt; · <b>12,345<\/b>/);
+  assert.match(html, /Pot <b>0\.00045 ETH<\/b><\/p><p class="lead">Leader <b>12,345<\/b> · &lt;i&gt;x&lt;\/i&gt;/, 'the score first: a long name is the one cut');
   assert.match(html, /Pot <b>0\.00005 ETH<\/b><\/p><p class="lead">No score yet\. Be the first\./);
 });
 

@@ -132,7 +132,7 @@ test('after: the 5 winners with their amounts, paid Saturday, and the next Final
 test('ALL GAMES: the pot and leader of each, biggest first; a game with no score says so', { skip: !CHROME }, async () => {
   const page = await open(HUB, real, '/', () => doc({ state: 'before' }));
   const first = page.locator('#gameList .g').first();
-  assert.match(await first.innerText(), /FULL ROW[\s\S]*Pot 0\.00150 ETH[\s\S]*Leader heast\.eth · 4,321/);
+  assert.match(await first.innerText(), /FULL ROW[\s\S]*Pot 0\.00150 ETH[\s\S]*Leader 4,321 · heast\.eth/);
   assert.equal(await first.locator('a.btn').getAttribute('href'), 'https://yfq52eu3.srstudio.dev/');
   assert.match(await page.locator('#gameList .g').last().innerText(), /THE MORNING BREW[\s\S]*Pot 0\.00000 ETH[\s\S]*No score yet/);
   assert.match(await page.locator('#games .intro').innerText(), /Every game has its own pot\. Each play adds 0\.00005 ETH to it, and the best score of the week takes it, every Friday at 11pm Lisbon\./);

@@ -350,7 +350,7 @@ function gameList(games, clips, pots, skip) {
     return x - y || a.order - b.order;
   }).map(function (g) {
     var title = gEsc(String(g.title).toUpperCase()), p = by[g.slug] && by[g.slug].p;
-    var pot = 'Pot <b>' + (p ? gEsc(p.potEth) : '—') + ' ETH</b>', lead = p ? (p.leader ? 'Leader ' + gEsc(p.leader.name) + ' · <b>' + gEsc(scoreText(p.leader.score)) + '</b>' : 'No score yet. Be the first.') : '';
+    var pot = 'Pot <b>' + (p ? gEsc(p.potEth) : '—') + ' ETH</b>', lead = p ? (p.leader ? 'Leader <b>' + gEsc(scoreText(p.leader.score)) + '</b> · ' + gEsc(p.leader.name) : 'No score yet. Be the first.') : '';
     return '<li class="g" data-game="' + g.slug + '">' + gameMedia(g, clips, 'th', true) + (g.appId === fresh ? '<span class="new">NEW</span>' : '') +
       '<div><h3>' + title + '</h3><p class="lbl by">By ' + gEsc(g.artist && g.artist.name) + '</p><p class="pot">' + pot + '</p>' + (lead ? '<p class="lead">' + lead + '</p>' : '') + '</div>' +
       '<a class="btn" href="' + g.origin + '/" data-app="' + g.appId + '" target="_blank" rel="noopener">PLAY</a></li>';
