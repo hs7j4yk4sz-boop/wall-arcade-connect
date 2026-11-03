@@ -7,13 +7,14 @@
 //                             the payment; jackpot-clear: forget a send that never went through; finale: the weeks to
 //                             come and the games to pick from; finale-pick: a week's game, until its finale starts;
 //                             jackpot-manual: a week paid by hand, its hashes (each mined and successful), no PAY after;
-//                             finale-top10: a closed finale's top 10 (rank, wallet, ENS, score) as CSV, for the coffees
+//                             finale-top10: a closed finale's top 10 (rank, wallet, ENS, score) as CSV, for the coffees;
+//                             finale-space: this week's X space, until the week closes (the hub links it while the finale runs)
 // No key here: the treasury signs in the admin page, in its own wallet. The service only reads the chain: a week is paid when
 // a mined transaction from the treasury to Disperse carries exactly its lines, plus one line of its wall amount (that line's
 // address is the wall's, typed in the page). A week with a hash, or marked paid by hand, cannot be paid again.
 import { decodeDisperse, DISPERSE } from './disperse.js';
 import { readGames, WALLET, type Game, type GamesStore } from './games.js';
-import { candidates, csvOf, FINALE_WEI, finaleStage, finaleWindow, PLACES, PRIZES_WEI, playsEth, rowsOf, topFive, topTen, type Entry, type FinalePick, type FinaleRow, type TopRow, type Winner } from './finale.js';
+import { candidates, csvOf, FINALE_WEI, finaleStage, finaleWindow, PLACES, potsOf, PRIZES_WEI, playsEth, rowsOf, SPACE, topFive, topTen, type Entry, type FinalePick, type FinaleRow, type Leader, type Pot, type TopRow, type Winner } from './finale.js';
 import { buildPlan, closedWeeks, earningsOf, ethOf, numberedWeek, shortWallet, type Best, type NumberedWeek, type Plan } from './jackpot.js';
 import { TREASURY } from './pot.js';
 import { clientOf, usageOf } from './stats-sources.js';
@@ -26,8 +27,8 @@ export type JackpotDeps = {
   games: Pick<GamesStore, 'getText' | 'set' | 'delete' | 'getBytes'>;
   /** one call to a public Ethereum RPC */
   rpc(method: string, params: unknown[]): Promise<unknown>;
-  /** a Netlify draft's plays of the week: it has no token (cards/src/jackpot-store.ts); else SuperRare's usage report */
-  plays?(): Promise<number>;
+  /** a Netlify draft's plays of the week, all and by game slug: it has no token (cards/src/jackpot-store.ts); else SuperRare's usage report */
+  plays?(): Promise<{ total: number; bySlug: Record<string, number> }>;
   /** the FINALE on the hub and in PAY (FINALE_PUBLIC in cards/src/finale.ts) */
   finale: boolean;
 };
@@ -115,21 +116,37 @@ export async function handleEarnings(deps: JackpotDeps): Promise<Response> {
 }
 
 export type LiveGame = { slug: string; title: string; artist: string; origin: string };
-export type LiveFinale = { state: 'before' | 'live' | 'after'; n: number; from: string; to: string; game: LiveGame | null; bonus: string | null; places: number; prizesEth: string[]; top: FinaleRow[]; next: { from: string; to: string; game: LiveGame | null } | null };
-export type LiveDoc = { updatedAt: string; week: NumberedWeek; plays: number; finaleEth: string; addEth: string; finale: LiveFinale | null; welcomeLeft: number };
+export type LiveFinale = { state: 'before' | 'live' | 'after'; n: number; from: string; to: string; game: LiveGame | null; bonus: string | null; extra: string | null; space: string | null; places: number; prizesEth: string[]; top: FinaleRow[]; next: { from: string; to: string; game: LiveGame | null } | null };
+export type LiveDoc = { updatedAt: string; week: NumberedWeek; plays: number; finaleEth: string; addEth: string; games: Pot[]; finale: LiveFinale | null; welcomeLeft: number };
 const gameOf = (pick: FinalePick | null): LiveGame | null => (pick ? { slug: pick.slug, title: pick.title, artist: pick.artist, origin: pick.origin } : null);
 export const WELCOME_CAP = 100;                                 // new wallets a week (cards/src/credits-service.ts)
 export const welcomeKey = (n: number): string => `welcome-week-${n}.json`;
 
-/** The hub's document, from the sources: the week's plays (credits played, SuperRare's usage report) and the FINALE block. */
+/** The week's plays, all and by game slug: SuperRare's usage report (credits played), or a draft's own reading. */
+async function playsOf(deps: JackpotDeps, week: NumberedWeek, games: Game[]): Promise<{ total: number; bySlug: Record<string, number> }> {
+  const client = clientOf({ fetch: deps.fetch, token: deps.token });
+  if (!client) {
+    if (!deps.plays) throw new Error('no RARE_PROFILE_TOKEN');
+    return deps.plays();
+  }
+  const usage = await usageOf(client, Date.parse(week.from), Math.min(Date.parse(week.to), deps.now() + 1));
+  return { total: usage.total.credits, bySlug: Object.fromEntries(games.flatMap((g) => (usage.games[g.appId] ? [[g.slug, usage.games[g.appId]?.credits ?? 0]] : []))) };
+}
+
+/** The hub's document, from the sources: the week's plays (credits played, SuperRare's usage report), each live game's pot and
+ *  leader (its board of the week; a board that cannot be read shows no leader), and the FINALE block. */
 async function readLive(deps: JackpotDeps): Promise<LiveDoc> {
-  const client = clientOf({ fetch: deps.fetch, token: deps.token }), now = deps.now(), week = numberedWeek(now);
-  if (!client && !deps.plays) throw new Error('no RARE_PROFILE_TOKEN');
-  const plays = client ? (await usageOf(client, Date.parse(week.from), Math.min(Date.parse(week.to), now + 1))).total.credits : await (deps.plays as () => Promise<number>)();
+  const now = deps.now(), week = numberedWeek(now), games = await readGames(deps.games as GamesStore);
+  const { total: plays, bySlug } = await playsOf(deps, week, games);
+  const leaders = Object.fromEntries(await Promise.all(games.filter((g) => g.status === 'live').map(async (g): Promise<[string, Leader | null]> => {
+    const best = await bestOf(deps.fetch, g, week).catch(() => null);
+    return [g.slug, best ? { name: best.name, score: best.score } : null];
+  })));
+  const pots = potsOf(games, bySlug, leaders);
   const previous = week.n > 1 ? numberedWeek(Date.parse(week.from) - 1) : null;
   const [pick, last, count] = await Promise.all([readPick(deps, week.n), previous ? readPick(deps, previous.n) : null, deps.store.getText(welcomeKey(week.n))]);
   const welcomeLeft = Math.max(0, WELCOME_CAP - (Number(count) || 0));
-  if (!deps.finale) return { updatedAt: new Date(now).toISOString(), week, plays, finaleEth: '0', addEth: playsEth(plays), welcomeLeft, finale: null };
+  if (!deps.finale) return { updatedAt: new Date(now).toISOString(), week, plays, finaleEth: '0', addEth: playsEth(plays), games: pots, welcomeLeft, finale: null };
   const stage = finaleStage(now, week, previous, Boolean(last));
   const shown = stage === 'after' ? previous as NumberedWeek : week, chosen = stage === 'after' ? last : pick, window = finaleWindow(shown);
   if (!window) throw new Error('no finale this week');
@@ -140,8 +157,8 @@ async function readLive(deps: JackpotDeps): Promise<LiveDoc> {
   } else if (stage === 'live' && pick) top = rowsOf(await winnersOf(deps, pick, week).catch(() => []));
   const coming = finaleWindow(week);
   return {
-    updatedAt: new Date(now).toISOString(), week, plays, finaleEth: '0.1000', addEth: playsEth(plays), welcomeLeft,
-    finale: { state: stage, n: shown.n, ...window, game: gameOf(chosen), bonus: chosen?.bonus ?? null, places: PLACES, prizesEth: PRIZES_WEI.map(ethOf), top, next: stage === 'after' && coming ? { ...coming, game: gameOf(pick) } : null },
+    updatedAt: new Date(now).toISOString(), week, plays, finaleEth: '0.1000', addEth: playsEth(plays), games: pots, welcomeLeft,
+    finale: { state: stage, n: shown.n, ...window, game: gameOf(chosen), bonus: chosen?.bonus ?? null, extra: chosen?.extra ?? null, space: chosen?.space ?? null, places: PLACES, prizesEth: PRIZES_WEI.map(ethOf), top, next: stage === 'after' && coming ? { ...coming, game: gameOf(pick) } : null },
   };
 }
 
@@ -158,6 +175,10 @@ export async function handleFinale(deps: JackpotDeps): Promise<Response> {
     return new Response(JSON.stringify({ error: 'not ready' }), { status: 503, headers: { ...headers, 'Cache-Control': 'no-store' } });
   }
 }
+
+const lineOf = (v: unknown, max: number): string => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max) : '');
+/** An X space link, '' for none, undefined for anything else. */
+const spaceOf = (v: unknown): string | undefined => { const s = lineOf(v, 200); return !s ? '' : SPACE.test(s) ? s.replace(/^https:\/\/twitter\.com/, 'https://x.com') : undefined; };
 
 /** The admin page's FINALE section: the finale just closed (its top 10 as CSV), this week and the three to come, each with its game
  *  and its bonus line; a finale that has started stays as it is. */
@@ -182,10 +203,19 @@ async function adminFinale(deps: JackpotDeps, body: Record<string, unknown>, adm
     else {
       const game = offered.find((g) => g.appId === body.appId);
       if (!game) return { status: 400, body: { error: 'Not an artist\'s live game with a wallet.' } };
-      const bonus = typeof body.bonus === 'string' ? body.bonus.trim().replace(/\s+/g, ' ').slice(0, 120) : '';
-      const pick: FinalePick = { n: week.n, appId: game.appId, slug: game.slug, title: game.title, origin: game.origin, artist: game.artist.name, artistWallet: (game.payoutWallet as string).toLowerCase(), by: admin, at: new Date(now).toISOString(), ...(bonus ? { bonus } : {}) };
+      const space = spaceOf(body.space);
+      if (space === undefined) return { status: 400, body: { error: 'The space: an X space link, https://x.com/i/spaces/…' } };
+      const bonus = lineOf(body.bonus, 120), extra = lineOf(body.extra, 40);
+      const pick: FinalePick = { n: week.n, appId: game.appId, slug: game.slug, title: game.title, origin: game.origin, artist: game.artist.name, artistWallet: (game.payoutWallet as string).toLowerCase(), by: admin, at: new Date(now).toISOString(), ...(bonus ? { bonus } : {}), ...(extra ? { extra } : {}), ...(space ? { space } : {}) };
       await deps.store.set(pickKey(week.n), JSON.stringify(pick));
     }
+  }
+  if (body.action === 'finale-space') {
+    const week = weeks[0] as NumberedWeek, pick = await readPick(deps, week.n), space = spaceOf(body.space);
+    if (body.week !== week.n || !pick) return { status: 400, body: { error: 'No game this week.' } };
+    if (space === undefined) return { status: 400, body: { error: 'The space: an X space link, https://x.com/i/spaces/…' } };
+    const { space: _old, ...rest } = pick;
+    await deps.store.set(pickKey(week.n), JSON.stringify({ ...rest, ...(space ? { space } : {}) }));
   }
   const shown = last && finaleWindow(last) ? [last, ...weeks] : weeks;
   const rows = await Promise.all(shown.map(async (w) => ({ n: w.n, from: finaleWindow(w)?.from ?? null, to: w.to, open: open(w), closed: Date.parse(w.to) <= now, pick: await readPick(deps, w.n) })));

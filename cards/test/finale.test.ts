@@ -86,7 +86,7 @@ function stand(now: number, rpc: JackpotDeps['rpc'] = async () => null): Jackpot
     if (u === 'https://studio.superrare.com/auth/cli/exchange') return Response.json({ sessionToken: 'jwt_test' });
     if (u.includes('/scoring/leaderboard')) { asked.push(u); return Response.json({ entries: board }); }
     const body = JSON.parse(String(init?.body ?? '{}')) as { action?: string; from?: string };
-    if (body.action === 'get-credit-group-usage') return Response.json({ groupId: '60faaf46-ba4b-460c-a82a-adb852371a94', from: body.from, to: body.from, page: { hasMore: false, nextCursor: null }, totals: { capturedPlays: '3', completedPlays: '3', creditsConsumed: '3' }, games: [] });
+    if (body.action === 'get-credit-group-usage') return Response.json({ groupId: '60faaf46-ba4b-460c-a82a-adb852371a94', from: body.from, to: body.from, page: { hasMore: false, nextCursor: null }, totals: { capturedPlays: '3', completedPlays: '3', creditsConsumed: '3' }, games: [{ appId: uuid(2), title: 'GATE RUSH', capturedPlays: '2', completedPlays: '2', creditsConsumed: '2' }, { appId: uuid(1), title: 'UNBREAKABLE', capturedPlays: '1', completedPlays: '1', creditsConsumed: '1' }] });
     throw new Error(`unexpected ${u}`);
   }) as typeof fetch;
   return { map, asked, fetch: fetchStub, now: () => now, token: 'slk_test', rpc, finale: true, store: { getText: async (k) => map.get(k) ?? null, set: async (k, v) => { map.set(k, v); } },
@@ -114,6 +114,24 @@ test('the pick\'s bonus line: trimmed, one line, 120 characters at most; saving 
   assert.equal((JSON.parse(deps.map.get('finale-2.json') as string) as FinalePick).bonus?.length, 120);
   await adminJackpot(deps, { action: 'finale-pick', week: 2, appId: uuid(2) }, 'admin');
   assert.equal((JSON.parse(deps.map.get('finale-2.json') as string) as FinalePick).bonus, undefined);
+});
+
+test('the pick\'s prize words and X space: "+ 10 coffees" after the 0.1 ETH, a space link or none; the space can change until the week closes', async () => {
+  const deps = stand(Date.parse('2026-11-01T12:00:00Z'));
+  await adminJackpot(deps, { action: 'finale-pick', week: 2, appId: uuid(2), extra: ' 10  coffees ', bonus: 'Top 10: a coffee NFT', space: 'https://twitter.com/i/spaces/1ABCdefGHIjk' }, 'admin');
+  const pick = JSON.parse(deps.map.get('finale-2.json') as string) as FinalePick;
+  assert.deepEqual([pick.extra, pick.bonus, pick.space], ['10 coffees', 'Top 10: a coffee NFT', 'https://x.com/i/spaces/1ABCdefGHIjk']);
+  assert.equal((await adminJackpot(deps, { action: 'finale-pick', week: 2, appId: uuid(2), space: 'https://evil.example/i/spaces/1ABCdefGHIjk' }, 'admin')).status, 400);
+  const running = stand(Date.parse('2026-11-06T18:00:00Z'));
+  running.map.set('finale-2.json', JSON.stringify(pick));
+  assert.equal((await adminJackpot(running, { action: 'finale-pick', week: 2, appId: uuid(2) }, 'admin')).status, 409, 'its game stays');
+  assert.equal((await adminJackpot(running, { action: 'finale-space', week: 2, space: 'https://x.com/i/spaces/9ZYXwvuTSrq' }, 'admin')).status, 200);
+  assert.equal((JSON.parse(running.map.get('finale-2.json') as string) as FinalePick).space, 'https://x.com/i/spaces/9ZYXwvuTSrq');
+  assert.equal((await live(running)).finale.space, 'https://x.com/i/spaces/9ZYXwvuTSrq');
+  await adminJackpot(running, { action: 'finale-space', week: 2, space: '' }, 'admin');
+  assert.equal((JSON.parse(running.map.get('finale-2.json') as string) as FinalePick).space, undefined);
+  assert.equal((JSON.parse(running.map.get('finale-2.json') as string) as FinalePick).extra, '10 coffees', 'the rest stays');
+  assert.equal((await adminJackpot(running, { action: 'finale-space', week: 3, space: '' }, 'admin')).status, 400);
 });
 
 test('the top 10 as CSV, once the finale has closed: rank, wallet, ENS, score, the artist out', async () => {
@@ -147,8 +165,21 @@ test('/finale.json before: the week\'s plays and X, the game picked, no board re
   assert.equal(d.finale.game?.title, 'GATE RUSH');
   assert.equal(d.finale.from, '2026-11-13T16:00:00.000Z');
   assert.equal(d.finale.bonus, null);
-  assert.equal(deps.asked.length, 0);
+  assert.equal(deps.asked.filter((u) => u.includes('16%3A00')).length, 0, 'no board of the seven hours before they start');
   assert.ok(!JSON.stringify(d).includes(wallet(1)) && !JSON.stringify(d).includes(ARTIST));
+});
+
+test('/finale.json: each live game\'s pot of the week, the biggest first, and its leader of the week', async () => {
+  const deps = stand(Date.parse('2026-11-08T12:00:00Z'));
+  const d = await live(deps);
+  assert.deepEqual(d.games, [
+    { slug: 'gate-rush', plays: 2, potEth: '0.00010', leader: { name: 'artist.eth', score: 9999 } },
+    { slug: 'unbreakable', plays: 1, potEth: '0.00005', leader: { name: 'artist.eth', score: 9999 } },
+    { slug: 'no-wallet', plays: 0, potEth: '0.00000', leader: { name: 'artist.eth', score: 9999 } },
+  ], 'live games only; the boards of the week, from Friday 23:00');
+  assert.ok(deps.asked.every((u) => u.includes('from=2026-11-06T23%3A00%3A00.000Z&to=2026-11-13T23%3A00%3A00.000Z')));
+  const blind = { ...deps, fetch: (async (url: string, init?: RequestInit) => (String(url).includes('/scoring/') ? new Response('', { status: 500 }) : deps.fetch(url, init))) as typeof fetch };
+  assert.deepEqual((await live(blind)).games.map((g) => g.leader), [null, null, null], 'a board that cannot be read: no leader, the pot still there');
 });
 
 test('/finale.json with the finale not public: the plays only, and a closed week pays no finale', async () => {
@@ -170,7 +201,7 @@ test('/finale.json live: the board of the seven hours only, the artist out', asy
   assert.equal(d.finale.state, 'live');
   assert.deepEqual(d.finale.top.map((r) => [r.rank, r.name, r.eth]).slice(0, 2), [[1, 'one.eth', '0.04'], [2, '0x0202…0202', '0.025']]);
   assert.equal(d.finale.bonus, '+ 10 coffees by K4NCUN0 for the top 10');
-  assert.match(deps.asked[0] as string, /from=2026-11-13T16%3A00%3A00.000Z&to=2026-11-13T23%3A00%3A00.000Z/);
+  assert.ok(deps.asked.some((u) => /from=2026-11-13T16%3A00%3A00.000Z&to=2026-11-13T23%3A00%3A00.000Z/.test(u)));
 });
 
 test('/finale.json after: the winners kept with the week, and the next finale', async () => {
@@ -184,7 +215,7 @@ test('/finale.json after: the winners kept with the week, and the next finale', 
   assert.equal(d.finale.top.length, 5);
   assert.equal(d.finale.next?.game?.title, 'NEXT ONE');
   assert.equal(d.finale.next?.from, '2026-11-20T16:00:00.000Z');
-  assert.equal(deps.asked.length, 0);
+  assert.equal(deps.asked.filter((u) => u.includes('16%3A00')).length, 0, 'the winners as kept with the week');
 });
 
 test('/finale.json: a source that fails serves the last good document; with none, 503', async () => {
@@ -198,7 +229,9 @@ test('/finale.json: a source that fails serves the last good document; with none
 
 test('/finale.json on a draft: no token, its plays from where it is told', async () => {
   const deps = stand(Date.parse('2026-11-08T12:00:00Z'));
-  assert.equal((await live({ ...deps, token: undefined, plays: async () => 41 })).addEth, '0.00205');
+  const d = await live({ ...deps, token: undefined, plays: async () => ({ total: 41, bySlug: { unbreakable: 40, 'gate-rush': 1 } }) });
+  assert.equal(d.addEth, '0.00205');
+  assert.deepEqual(d.games.map((g) => [g.slug, g.potEth]), [['unbreakable', '0.00200'], ['gate-rush', '0.00005'], ['no-wallet', '0.00000']]);
 });
 
 test('PAY\'s check: the week\'s send with the finale is paid, a send without it is refused', async () => {
@@ -217,6 +250,6 @@ test('a closed week carries its finale: PAY\'s week is calculated with the winne
   const r = await adminJackpot(deps, { action: 'jackpot' }, 'admin') as { body: { weeks: WeekRecord[] } };
   const week3 = r.body.weeks.find((w) => w.plan?.n === 3);
   assert.equal(week3?.plan.finale?.winners.length, 5);
-  assert.equal(ethOf(week3?.plan.sendWei ?? '0'), '0.1');
+  assert.equal(ethOf(week3?.plan.sendWei ?? '0'), '0.1003');                 // the finale, and the week's 3 credits (0.0003 ETH)
   assert.ok(deps.asked.some((u) => u.includes('from=2026-11-13T16%3A00')));
 });

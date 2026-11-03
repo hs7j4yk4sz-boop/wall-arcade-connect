@@ -5,7 +5,7 @@
 // that wallet's name, valid 2 minutes. The link opens in the instant of the click (a window opened at once, sent to the
 // link when it arrives); another click asks for a new token. Anyone else keeps "People of the wall only." and SIGN IN.
 // Sign-in only: no game authorization, no payment on this page. Connect opens in a popup on the click.
-// GET 5 FREE PLAYS, under the games: a new wallet signs in, the card service (POST /api/welcome) checks the session with
+// GET MY FREE PLAYS, under the game of the week: a new wallet signs in, the card service (POST /api/welcome) checks the session with
 // SuperRare and grants its 5 credits, once.
 import { ConnectPopupBlockedError, createSuperRareClient } from '@rareprotocol/connect';
 
@@ -85,7 +85,7 @@ new IntersectionObserver((entries, observer) => {
 const claim = $<HTMLButtonElement>('welcomeClaim'), said = $('welcomeSaid');
 const answers: Record<string, string> = {
   granted: '5 plays are in your wallet. Pick a game: each one starts with your consent.', already: 'This wallet already has its 5 free plays.',
-  known: 'This wallet has played here before: the 5 free plays are for new wallets.', full: 'This week\'s 100 wallets are in. Come back after Friday 23:00 Lisbon.',
+  known: 'This wallet has played here before: the 5 free plays are for new wallets. The people of the wall get 3 every Friday.', full: 'This week\'s 100 wallets are in. Come back after Friday 23:00 Lisbon.',
 };
 claim.addEventListener('click', async () => {
   claim.disabled = true; said.textContent = 'SuperRare Connect is open in a popup.';

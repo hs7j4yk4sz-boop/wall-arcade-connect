@@ -32,6 +32,10 @@ export function jackpotDeps(): JackpotDeps {
  *  so its plays are those of production's public earnings.json, the 15-minute reading. It shows the FINALE, for review. */
 export function draftDeps(): JackpotDeps {
   const deps = jackpotDeps();
-  return { ...deps, token: undefined, finale: true, plays: async () => ((await (await fetch(`${SITE}/earnings.json`, { signal: AbortSignal.timeout(5000) })).json()) as { credits: number }).credits,
+  const plays = async (): Promise<{ total: number; bySlug: Record<string, number> }> => {
+    const doc = await (await fetch(`${SITE}/earnings.json`, { signal: AbortSignal.timeout(5000) })).json() as { credits: number; games?: { slug: string; credits: number }[] };
+    return { total: doc.credits, bySlug: Object.fromEntries((doc.games ?? []).map((g) => [g.slug, g.credits])) };
+  };
+  return { ...deps, token: undefined, finale: true, plays,
     store: { getText: async (key) => (key === 'live.json' ? null : deps.store.getText(key)), set: async () => undefined } };
 }

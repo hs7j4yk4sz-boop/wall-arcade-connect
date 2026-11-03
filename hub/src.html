@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>THE WALL ARCADE</title>
-<meta name="description" content="Play arcade games built on the names of a real wall in Lisbon. Every paid play feeds the jackpot.">
+<meta name="description" content="Play arcade games built on the names of a real wall in Lisbon. Every game has its own pot, and the game of the week has its Final, live on X.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=DotGothic16&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* THE WALL ARCADE, player page, from the Claude Design mockup "The Wall Arcade": paper #FBF8EC, ink #14161F, blue
-   #3F4BA2, highlight yellow #FFF8A7; Anton for titles, DotGothic16 for subtitles and buttons, IBM Plex Mono for text;
-   2 px borders, no rounding. Mobile first: everything stacks in the same order. */
+/* THE WALL ARCADE, player page, v4: the game of the week first, then the free plays, every game with its pot, the artists, the
+   people. Paper #FBF8EC, ink #14161F, blue #3F4BA2, highlight yellow #FFF8A7; Anton for titles, DotGothic16 for subtitles and
+   buttons, IBM Plex Mono for text; 2 px borders, no rounding. Mobile first: on a phone the game's name, its prize and PLAY come
+   in the first screen. */
 :root{--paper:#FBF8EC;--ink:#14161F;--blue:#3F4BA2;--yellow:#FFF8A7;--grey:#464A5E;
   --anton:Anton,Impact,sans-serif;--dot:'DotGothic16',monospace;--mono:'IBM Plex Mono',ui-monospace,monospace;--padx:clamp(16px,4vw,48px)}
 *{box-sizing:border-box;border-radius:0}
@@ -31,10 +32,12 @@ p,h1,h2,h3{margin:0}
 .btn.dashed{background:transparent;color:var(--blue);border-style:dashed}
 .btn.dashed:hover{background:var(--blue);color:var(--paper)}
 section{padding:clamp(48px,7vw,104px) var(--padx)}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px 16px;flex-wrap:wrap;margin-bottom:14px}
+.sec-h h2{font-size:clamp(40px,6vw,84px);line-height:.9}
 
-/* 1. nav */
+/* the nav */
 nav{position:sticky;top:0;z-index:20;background:#FBF8ECf2;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-bottom:2px solid var(--blue);
-  padding:0 var(--padx);height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  padding:0 var(--padx);height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
 .brand i{width:14px;height:14px;background:var(--blue);display:block}
 .brand span{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase}
@@ -42,114 +45,107 @@ nav{position:sticky;top:0;z-index:20;background:#FBF8ECf2;backdrop-filter:blur(6
 .links a{font:500 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--grey);text-decoration:none}
 .links a:hover{color:var(--blue)}
 .navr{display:flex;align-items:center;gap:10px}
-.navr .btn{font-size:18px;padding:10px 22px;min-height:44px}
-.info{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border:2px solid var(--blue);background:var(--paper);color:var(--blue);font:400 20px/1 var(--dot);cursor:pointer;padding:0}
+.navr .btn{font-size:18px;padding:8px 20px;min-height:40px}
+.info{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border:2px solid var(--blue);background:var(--paper);color:var(--blue);font:400 20px/1 var(--dot);cursor:pointer;padding:0}
 .info:hover{background:var(--blue);color:var(--paper)}
 
-/* 2. hero */
-.hero{display:grid;grid-template-columns:1fr;gap:clamp(32px,5vw,72px);align-items:center;padding-top:clamp(40px,8vw,120px)}
-.hero .kicker{font:400 clamp(18px,2.2vw,26px)/1.2 var(--dot);color:var(--blue)}
-.hero h1{margin-top:18px;color:var(--blue);font-size:clamp(64px,11vw,156px);line-height:.88;text-wrap:balance}
-.hero .base{margin-top:22px;font-size:clamp(15px,1.4vw,18px);line-height:1.5;max-width:44ch}
-.hero .base span{display:block}
-.hero .act{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-top:28px}
-.hero .act .btn{font-size:clamp(20px,5.4vw,28px);padding:16px clamp(18px,4vw,36px);white-space:nowrap}
-.live{display:flex;align-items:center;gap:10px}
-.live i{width:8px;height:8px;background:var(--blue);display:inline-block;animation:blink 1.2s steps(1) infinite}
-.live b{color:var(--ink);font-weight:600}
-.frame{position:relative;border:2px solid var(--blue);padding:10px;background:var(--paper)}
-.frame video{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:var(--ink)}
-.sound{position:absolute;right:20px;bottom:20px;min-height:40px;padding:8px 14px;border:2px solid var(--paper);background:var(--blue);color:var(--paper);font:400 16px/1 var(--dot);cursor:pointer}
-.sound:hover{background:var(--paper);color:var(--blue);border-color:var(--blue)}
-
-/* 3. the games */
-.games{border-top:2px solid var(--blue)}
-.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:32px}
-.sec-h h2{font-size:clamp(40px,6vw,84px);line-height:.9}
-.row{display:grid;grid-template-columns:1fr;gap:clamp(16px,2.5vw,32px)}
-.game{display:flex;flex-direction:column;border:2px solid var(--blue);background:var(--paper)}
-.game .head{position:relative;background:var(--blue);color:var(--paper);padding:14px 16px 12px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.game .head h3{font:400 26px/1 var(--dot)}
-.game .head .n{font:500 12px/1 var(--mono);letter-spacing:.14em}
-.new{position:absolute;top:-14px;right:12px;background:var(--yellow);color:var(--ink);border:2px solid var(--ink);padding:4px 10px;font:400 16px/1 var(--dot)}
-.game .shot{display:block;margin:12px;border:2px solid var(--blue);aspect-ratio:4/3;width:calc(100% - 24px);height:auto;object-fit:cover;object-position:center 22%;background:var(--ink);pointer-events:none}   /* a 10 s clip (the 4:3 window of the stage), its screenshot as poster */
-.game .line{padding:4px 16px 8px;font-size:14px;line-height:1.5;color:var(--ink)}
-.game .by{padding:0 16px 8px}
-.game .foot{margin:auto 12px 12px;border-top:2px solid var(--blue);padding-top:12px}
-.game .foot .btn{display:flex;width:100%;font-size:22px}
-.game.yours{border-style:dashed;opacity:.9}
-.game.yours .head{background:transparent;color:var(--blue);border-bottom:2px dashed var(--blue)}
-.game.yours .here{margin:12px;aspect-ratio:4/3;border:2px dashed var(--blue);display:flex;align-items:center;justify-content:center;font:400 22px/1.2 var(--dot);color:var(--blue);text-align:center;padding:20px}
-.game.yours .foot{border-top-style:dashed}
-.game.yours .foot .btn{font-size:clamp(15px,1.3vw,18px);padding:12px 10px;white-space:nowrap}
-
-/* the FINALE, the page's first block: Friday 16:00 to 23:00 Lisbon. Blue before and after, yellow while it runs */
-.finale{padding:clamp(24px,3.5vw,44px) var(--padx);background:var(--blue);color:var(--paper);border-bottom:2px solid var(--ink)}
-.finale.on{background:var(--yellow);color:var(--ink)}
-.finale .wrap{display:grid;grid-template-columns:1fr;gap:clamp(20px,3vw,40px)}
-.finale .lbl{color:inherit;display:flex;align-items:center;gap:10px}
-.finale .lbl i{width:10px;height:10px;background:currentColor;display:none;animation:blink 1.2s steps(1) infinite}
-.finale.on .lbl i{display:inline-block}
-.finale h2{margin-top:12px;font-size:clamp(44px,8vw,104px);line-height:.92;overflow-wrap:anywhere}
-.finale .by{margin-top:10px;font:400 clamp(18px,2.4vw,24px)/1.2 var(--dot)}
-.finale .what{margin-top:14px;font-size:15px;line-height:1.55;max-width:48ch}
-.finale .bonus{margin-top:8px;font-size:15px;line-height:1.55;font-weight:700;max-width:48ch}
-.finale .when{margin-top:18px;display:flex;align-items:center;gap:16px 24px;flex-wrap:wrap}
-.finale .t{font:400 clamp(28px,4.4vw,48px)/1 var(--dot);letter-spacing:.04em;font-variant-numeric:tabular-nums}
-.finale .btn{background:var(--paper);border-color:var(--paper);color:var(--blue);font-size:22px;white-space:nowrap}
-.finale .btn:hover{background:var(--blue);color:var(--paper)}
-.finale.on .btn{background:var(--blue);border-color:var(--blue);color:var(--paper)}
-.finale.on .btn:hover{background:var(--paper);color:var(--blue)}
-.ftop{border:2px solid currentColor;align-self:start;min-width:0}
-.ftop .fh{padding:12px 16px;border-bottom:2px solid currentColor;display:flex;justify-content:space-between;gap:12px;font:400 20px/1 var(--dot)}
-.ftop .fh span:last-child{font:500 12px/1.6 var(--mono);letter-spacing:.14em;text-transform:uppercase}
-.ftop .r{display:grid;grid-template-columns:28px minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid currentColor}
+/* 1. THE GAME OF THE WEEK, from the card service's /finale.json (cards/src/jackpot-service.ts): its name, artist and panel,
+   its clip, its line, THIS GAME'S PRIZE, and the FINAL block (before, live, after); with no finale this week, the hottest game */
+.week{padding:clamp(14px,3vw,40px) var(--padx) clamp(24px,4vw,56px);border-bottom:2px solid var(--blue)}
+.week .wrap{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"lbl" "name" "by" "clip" "line" "prize" "final";gap:8px 48px}
+.week .wlbl{grid-area:lbl;color:var(--blue);display:flex;align-items:center;gap:8px}
+.week .wlbl i{width:10px;height:10px;background:currentColor;display:inline-block}
+.week h1{grid-area:name;color:var(--blue);font-size:clamp(44px,11.6vw,112px);line-height:.88;overflow-wrap:anywhere;min-height:.88em}
+.week .by{grid-area:by;font:400 clamp(17px,2vw,24px)/1.2 var(--dot)}
+.week .clip{grid-area:clip;margin-top:4px;border:2px solid var(--blue);padding:6px;background:var(--paper);align-self:start}
+.week .clip > *{display:block;width:100%;aspect-ratio:2/1;object-fit:cover;object-position:center 22%;background:var(--ink);pointer-events:none}
+.week .line{grid-area:line;font-size:14px;line-height:1.45;max-width:52ch}
+.prize{grid-area:prize;margin-top:6px;background:var(--yellow);border:2px solid var(--ink);padding:12px 14px;display:flex;flex-direction:column;gap:5px;align-self:start}
+.prize .lbl{color:var(--ink)}
+.prize .big{font:400 clamp(30px,8.4vw,60px)/1 var(--anton);text-transform:uppercase}
+.prize .split{font:600 13px/1.4 var(--mono);font-variant-numeric:tabular-nums}
+.prize .bonus{font:700 14px/1.4 var(--mono)}
+.prize .small{font-size:11.5px;line-height:1.4;color:var(--grey)}
+.final{grid-area:final;margin-top:6px;border:2px solid var(--blue);padding:12px 14px;display:flex;flex-direction:column;gap:8px;align-self:start;min-width:0}
+.final .flbl{color:var(--blue);display:flex;align-items:center;gap:8px}
+.final .flbl i{width:10px;height:10px;background:currentColor;display:none;animation:blink 1.2s steps(1) infinite}
+.final .when{font:400 14px/1.3 var(--dot);text-transform:uppercase}
+.final .now{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px}
+.final .t{font:400 clamp(22px,6vw,34px)/1 var(--dot);letter-spacing:.03em;font-variant-numeric:tabular-nums}
+.final .beat{font-size:13px;line-height:1.4}
+.final .beat b{font:600 16px/1 var(--mono);font-variant-numeric:tabular-nums}
+.final .play{display:flex;width:100%;font-size:clamp(19px,5.4vw,28px);padding:14px 16px;min-height:58px;text-align:center;line-height:1.1}
+.final .sub{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;font-size:13px}
+.final .next{font-size:13px;line-height:1.45}
+.final.on{background:var(--blue);color:var(--paper);border-color:var(--blue)}
+.final.on .flbl{color:var(--yellow)}
+.final.on .flbl i{display:inline-block}
+.final.on a:not(.btn){color:var(--yellow)}
+.final.on .play{background:var(--yellow);border-color:var(--yellow);color:var(--ink)}
+.final.on .play:hover{background:var(--paper);border-color:var(--paper)}
+.ftop{border:2px solid currentColor;min-width:0}
+.ftop .fh{padding:8px 12px;border-bottom:2px solid currentColor;display:flex;justify-content:space-between;gap:12px;font:400 17px/1 var(--dot)}
+.ftop .fh span:last-child{font:500 11px/1.6 var(--mono);letter-spacing:.14em;text-transform:uppercase}
+.ftop .r{display:grid;grid-template-columns:22px minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid currentColor}
 .ftop .r:last-child{border-bottom:0}
-.ftop .k{font:400 20px/1 var(--dot)}
-.ftop .p{font:400 clamp(16px,1.9vw,21px)/1.15 var(--dot);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ftop .s{font:600 15px/1 var(--mono);font-variant-numeric:tabular-nums}
-.ftop .e{font:500 13px/1 var(--mono);white-space:nowrap}
-.ftop .empty{padding:14px 16px;font-size:14px}
-.finale .prizes{grid-column:1/-1}
-.prizes{font:400 clamp(17px,2.3vw,26px)/1.3 var(--dot);font-variant-numeric:tabular-nums}
-.prizes b{font-weight:400;background:var(--yellow);color:var(--ink);padding:0 6px}
-.finale.on .prizes b{background:var(--blue);color:var(--paper)}
-.prizes .plus{display:inline-block;margin-left:8px;opacity:0;transition:opacity .25s}
-.prizes .plus.up{opacity:1}
-@media (min-width:980px){ .finale .wrap{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)} }
+.ftop .k{font:400 17px/1 var(--dot)}
+.ftop .p{font:400 16px/1.15 var(--dot);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ftop .s{font:600 14px/1 var(--mono);font-variant-numeric:tabular-nums}
+.ftop .e{font:500 12px/1 var(--mono);white-space:nowrap}
+.ftop .empty{padding:10px 12px;font-size:13px}
+.week.hot .final{grid-area:prize}
+@media (min-width:900px){
+  .week .wrap{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);grid-template-rows:auto auto auto 1fr auto;grid-template-areas:"lbl clip" "name clip" "by clip" "line clip" "prize final"}
+  .week.hot .wrap{grid-template-areas:"lbl clip" "name clip" "by clip" "line clip" "prize prize"}
+  .week .clip{margin-top:0}
+  .week .clip > *{aspect-ratio:16/9}
+}
 
-/* 4. this week's jackpot */
-.jackpot{background:var(--blue);color:var(--paper)}
-.jackpot .grid{display:grid;grid-template-columns:1fr;gap:clamp(32px,5vw,80px)}
-.jackpot .lbl{color:var(--paper);opacity:.85}
-.jackpot h2{margin-top:16px;font-size:clamp(52px,8vw,120px);line-height:.88}
-.amount{display:inline-block;margin-top:22px;background:var(--yellow);color:var(--ink);padding:10px 18px}
-.amount.prizes{font-size:clamp(20px,2.6vw,32px)}
-.amount.prizes b{background:none;padding:0}
-.jackpot p.rule{margin-top:18px;font-size:15px;line-height:1.55;max-width:44ch}
-.count{margin-top:24px;border-top:2px solid var(--paper);padding-top:18px}
-.count .t{margin-top:8px;font:400 clamp(40px,6vw,76px)/1 var(--dot);letter-spacing:.04em}
-.boards{display:grid;grid-template-columns:1fr;border:2px solid var(--paper);align-self:start}
-.board + .board{border-top:2px solid var(--paper)}
-.board .bh{padding:14px 18px;border-bottom:2px solid var(--paper);display:flex;justify-content:space-between;gap:12px;font:400 22px/1 var(--dot)}
-.board .bh span:last-child{font:500 12px/1.6 var(--mono);letter-spacing:.14em;text-transform:uppercase;opacity:.85}
-.board .r{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid #FBF8EC66}
-.board .r:last-child{border-bottom:0}
-.board .r .k{font:400 22px/1 var(--dot);opacity:.7}
-.board .r .p{font:400 clamp(18px,2vw,24px)/1.15 var(--dot);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.board .r .s{font:600 18px/1 var(--mono);text-align:right;font-variant-numeric:tabular-nums}
-.board .empty{padding:16px 18px;font-size:14px;opacity:.85}
+/* 2. the free plays: 3 for the people of the wall every Friday, 5 once for a new wallet */
+.free{padding:16px var(--padx);border-bottom:2px solid var(--blue)}
+.free .wrap{border:2px dashed var(--blue);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px 24px;flex-wrap:wrap}
+.free .what{display:flex;flex-direction:column;gap:4px}
+.free .what .lbl{color:var(--blue)}
+.free .what p:last-child{font-size:14px;line-height:1.5}
+.free .btn{font-size:20px;white-space:nowrap}
+.free .btn:disabled{opacity:.6;cursor:wait}
+.free .said{flex-basis:100%;font:500 12px/1.5 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+.free .said:empty{display:none}
 
-/* the holders' line under the games, and a new wallet's 5 free plays */
-.holders{margin-top:24px;font-size:14px;line-height:1.5;color:var(--ink)}
-.welcome{margin-top:16px;padding:14px 16px;border:2px dashed var(--blue);display:flex;align-items:center;justify-content:space-between;gap:12px 24px;flex-wrap:wrap}
-.welcome p{font-size:15px;line-height:1.5}
-.welcome .btn{font-size:20px;white-space:nowrap}
-.welcome .btn:disabled{opacity:.6;cursor:wait}
-.welcome .said{flex-basis:100%;font:500 12px/1.5 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
-.welcome .said:empty{display:none}
+/* 3. ALL GAMES: one line each, the biggest pot of the week first */
+.games{padding-top:clamp(32px,5vw,72px);padding-bottom:clamp(32px,5vw,72px)}
+.games .intro{font-size:15px;line-height:1.5;max-width:60ch;margin-bottom:18px}
+.list{list-style:none;margin:0;padding:0;border-top:2px solid var(--blue)}
+.g{position:relative;display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 0;border-bottom:2px solid var(--blue)}
+.g .th{display:block;width:76px;aspect-ratio:4/3;object-fit:cover;object-position:center 22%;border:2px solid var(--blue);background:var(--ink)}
+.g h3{font:400 clamp(18px,2.2vw,24px)/1.1 var(--dot);color:var(--blue);overflow-wrap:anywhere}
+.g .by{margin-top:2px;font-size:11px}
+.g .pot{margin-top:4px;font-size:13px;line-height:1.35;font-variant-numeric:tabular-nums}
+.g .pot b,.g .lead b{font-weight:600}
+.g .lead{font-size:12px;line-height:1.35;color:var(--grey);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g .btn{font-size:18px;padding:8px 16px;min-height:44px}
+.g .new{position:absolute;top:6px;left:-4px;background:var(--yellow);color:var(--ink);border:2px solid var(--ink);padding:2px 6px;font:400 12px/1 var(--dot)}
+.games .more{margin-top:16px;font-size:14px}
+@media (min-width:720px){ .g{grid-template-columns:120px minmax(0,1fr) auto;gap:20px} .g .th{width:120px} .g .btn{font-size:22px;padding:10px 26px} }
 
-/* 6. people of the wall: small, at the bottom; the scene at most 480 px high, beside the words on a wide screen */
+/* 4. the artists' call, on the live wall */
+.wall{border-top:2px solid var(--blue)}
+.wall .two{display:flex;flex-direction:column-reverse;gap:clamp(28px,5vw,64px)}
+.frame{position:relative;border:2px solid var(--blue);padding:10px;background:var(--paper)}
+.wall .frame{width:min(320px,100%)}
+.wall .text{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.wall h2{font-size:clamp(40px,6vw,84px);line-height:.9;margin-bottom:6px}
+.wall .text p{font-size:15px;line-height:1.5;max-width:44ch}
+.wall .text b{font-weight:600}
+.wall .text .btn{margin-top:12px}
+.wall .text .own{margin-top:8px;font-size:13px;color:var(--grey)}
+#wallgrid{display:grid;grid-template-columns:repeat(25,1fr);gap:3px}
+#wallgrid div{aspect-ratio:1;border:1px dashed var(--blue);opacity:.55}
+#wallgrid div.m{background:var(--blue);border-style:solid;opacity:1}
+.wall .dragon{position:absolute;right:-18px;bottom:-2px;width:96px;pointer-events:none}
+@media (min-width:720px){ .wall .two{flex-direction:row;align-items:center} }
+
+/* 5. people of the wall: small, at the bottom; the scene at most 480 px high, beside the words on a wide screen */
 .people{border-top:2px solid var(--blue);padding-top:clamp(40px,5vw,72px);padding-bottom:clamp(40px,5vw,72px)}
 .people .two{display:grid;grid-template-columns:1fr;gap:clamp(24px,4vw,48px);align-items:start}
 .people h2{font-size:clamp(32px,4.5vw,56px);line-height:.9}
@@ -174,45 +170,26 @@ nav{position:sticky;top:0;z-index:20;background:#FBF8ECf2;backdrop-filter:blur(6
 .who .pn.guest{letter-spacing:.06em;font-style:italic}
 @media (prefers-reduced-motion:reduce){.who .walk{animation:none}}
 @media (min-width:980px){ .people .two{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr)} }
-
-/* 5. create your own game: the live mosaic (320 px) and the words; on a phone the words first */
-.wall .two{display:flex;flex-direction:column-reverse;gap:clamp(28px,5vw,64px)}
-.wall .frame{width:min(320px,100%)}
-.wall .text{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
-.wall h2{font-size:clamp(40px,6vw,84px);line-height:.9;margin-bottom:6px}
-.wall .text p{font-size:15px;line-height:1.5;max-width:44ch}
-.wall .text b{font-weight:600}
-.wall .text .btn{margin-top:12px}
-.wall .text .own{margin-top:8px;font-size:13px;color:var(--grey)}
-#wallgrid{display:grid;grid-template-columns:repeat(25,1fr);gap:3px}
-#wallgrid div{aspect-ratio:1;border:1px dashed var(--blue);opacity:.55}
-#wallgrid div.m{background:var(--blue);border-style:solid;opacity:1}
-.wall .dragon{position:absolute;right:-18px;bottom:-2px;width:96px;pointer-events:none}
 footer{padding:28px var(--padx);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font:500 12px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--grey);max-width:1280px;margin:0 auto}
 footer a{text-decoration:none}
 footer .stamp{border:2px solid var(--blue);color:var(--blue);padding:6px 10px}
 
-/* the (i) */
-dialog{width:min(520px,calc(100% - 32px));padding:0;border:2px solid var(--blue);background:var(--paper);color:var(--ink)}
+/* the (i): THE WALL ARCADE, its teaser, how it works */
+dialog{width:min(560px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:0;border:2px solid var(--blue);background:var(--paper);color:var(--ink)}
 dialog::backdrop{background:rgba(20,22,31,.6)}
-.dlg-h{display:flex;justify-content:space-between;align-items:center;background:var(--blue);color:var(--paper);padding:10px 8px 10px 18px}
+.dlg-h{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;align-items:center;background:var(--blue);color:var(--paper);padding:10px 8px 10px 18px}
 .dlg-h h2{font:400 22px/1 var(--dot)}
 .dlg-h button{width:44px;height:44px;background:none;border:0;color:var(--paper);font:400 24px/1 var(--mono);cursor:pointer}
 .dlg-b{padding:18px;display:flex;flex-direction:column;gap:12px;font-size:15px;line-height:1.55}
+.dlg-b .kicker{font:400 18px/1.2 var(--dot);color:var(--blue)}
+.dlg-b .title{color:var(--blue);font-size:clamp(48px,12vw,72px);line-height:.88}
+.dlg-b h3{margin-top:8px;font:400 22px/1 var(--dot);color:var(--blue)}
+.dlg-b b{font-weight:600}
+.dlg-b .frame video{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:var(--ink)}
+.sound{position:absolute;right:20px;bottom:20px;min-height:40px;padding:8px 14px;border:2px solid var(--paper);background:var(--blue);color:var(--paper);font:400 16px/1 var(--dot);cursor:pointer}
+.sound:hover{background:var(--paper);color:var(--blue);border-color:var(--blue)}
 
-@media (max-width:719px){
-  .links{display:none}
-  .brand span{font-size:12px}
-}
-@media (min-width:720px){
-  .row{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-@media (min-width:720px){ .wall .two{flex-direction:row;align-items:center} }
-@media (min-width:980px){
-  .hero{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr)}
-  .jackpot .grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-}
-@media (min-width:1100px){ .row{grid-template-columns:repeat(4,minmax(0,1fr))} }
+@media (max-width:719px){ .links{display:none} }
 </style>
 </head>
 <body>
@@ -220,82 +197,77 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
 <dialog id="how" aria-labelledby="howTitle">
   <div class="dlg-h"><h2 id="howTitle">How it works</h2><button type="button" id="howClose" aria-label="Close">×</button></div>
   <div class="dlg-b">
-    <p>Every play counts for 1 credit and adds 0.00005 ETH to the week's prizes. The week closes every Friday at 23:00 Lisbon: half to the best score on each game, 40% to the artists, 10% to the wall.</p>
-    <p id="howFinale" hidden>Every Friday from 16:00 to 23:00 Lisbon, one artist's game is the Finale: 0.1 ETH from NFC to the top 5 of those seven hours.</p>
-    <p>50 plays for 0.005 ETH. New wallets get 5 free plays. Practice is free.</p>
+    <p class="kicker">on the wall presents</p>
+    <p class="anton title">The Wall Arcade</p>
+    <p>Play arcade games built on the names of a real wall in Lisbon: <b class="painted">—</b> names painted by hand.</p>
+    <div class="frame">
+      <video id="teaser" src="teaser-1x1.mp4" poster="teaser-poster.png" muted loop playsinline preload="none" aria-label="THE WALL ARCADE teaser"></video>
+      <button class="sound" id="sound" type="button" aria-pressed="false">SOUND OFF</button>
+    </div>
+    <h3>How it works</h3>
+    <p>Every play is 1 credit. Every game has its own pot: each play adds 0.00005 ETH to it, and the best score of the week takes it, every Friday at 23:00 Lisbon. 40% of every play goes to the game's artist, 10% to the wall.</p>
+    <p id="howFinale" hidden>Every Friday from 16:00 to 23:00 Lisbon, the game of the week has its Final, live on X: 0.1 ETH from NFC to the top 5 of those seven hours.</p>
+    <p>50 plays for 0.005 ETH. New wallets get 5 free plays, the people of the wall 3 every Friday. Practice is free.</p>
   </div>
 </dialog>
 
-<!-- 1. nav -->
 <nav>
   <a class="brand" href="#top"><i></i><span>The Wall Arcade</span></a>
-  <div class="links"><a href="#games">Games</a><a href="#jackpot">Jackpot</a><a href="#artists">Artists</a><a href="#people">People</a></div>
+  <div class="links"><a href="#games">Games</a><a href="./earnings.html">Earnings</a><a href="#artists">Artists</a><a href="#people">People</a></div>
   <div class="navr">
-    <a class="btn" href="#games">PLAY</a>
+    <a class="btn" href="#top">PLAY</a>
     <button class="info" id="infoBtn" type="button" aria-label="How it works" aria-haspopup="dialog">i</button>
   </div>
 </nav>
 
-<!-- the FINALE: drawn from the card service's /finale.json (cards/src/jackpot-service.ts), before, during and after -->
-<section class="finale" id="finale" hidden aria-labelledby="fGame">
+<!-- 1. the game of the week: drawn from the card service's /finale.json and games.json, before, during and after its Final;
+     with no Final this week, the game with the biggest pot -->
+<section class="week" id="top" aria-labelledby="wGame">
   <div class="wrap">
-    <div>
-      <p class="lbl"><i></i><span id="fLabel"></span></p>
-      <h2 class="anton" id="fGame"></h2>
-      <p class="by" id="fBy"></p>
-      <p class="what" id="fWhat"></p>
-      <p class="bonus" id="fBonus" hidden></p>
-      <div class="when"><p class="t" id="fCount"></p><a class="btn" id="fPlay" target="_blank" rel="noopener" hidden></a></div>
+    <p class="lbl wlbl"><i></i><span id="wLabel">Game of the week</span></p>
+    <h1 class="anton" id="wGame"></h1>
+    <p class="by" id="wBy"></p>
+    <div class="clip" id="wClip"><div role="img" aria-label=""></div></div>
+    <p class="line" id="wLine"></p>
+    <div class="prize" id="wPrize" hidden>
+      <p class="lbl">This game's prize</p>
+      <p class="big" id="pBig">0.1 ETH</p>
+      <p class="split" id="pSplit"></p>
+      <p class="bonus" id="pBonus" hidden></p>
+      <p class="small">Paid by NFC. Best score during the final wins.</p>
     </div>
-    <div class="ftop" id="fTop" hidden></div>
-    <p class="prizes" id="fPrizes"></p>
+    <div class="final" id="final" hidden>
+      <p class="lbl flbl"><i></i><span id="fLabel"></span></p>
+      <p class="when" id="fWhen"></p>
+      <div class="now"><p class="t" id="fCount"></p><p class="beat" id="fBeat"></p></div>
+      <a class="btn play" id="fPlay" target="_blank" rel="noopener"></a>
+      <div class="sub"><a id="fPractice" target="_blank" rel="noopener">Practice for free first</a><a id="fSpace" target="_blank" rel="noopener" hidden>Listen live on X →</a></div>
+      <div class="ftop" id="fTop" hidden></div>
+      <p class="next" id="fNext" hidden></p>
+    </div>
   </div>
 </section>
 
-<!-- 2. hero -->
-<section class="hero wrap" id="top">
-  <div>
-    <p class="kicker">on the wall presents</p>
-    <h1 class="anton">The Wall Arcade</h1>
-    <p class="base"><span>Play arcade games built on the names of a real wall in Lisbon.</span><span>Every paid play feeds the jackpot.</span><span>Every Friday, the best score on each game wins.</span></p>
-    <div class="act">
-      <a class="btn" href="#games">PLAY <span>→</span></a>
-      <a class="btn dashed" href="./builders.html">CREATE MY OWN GAME <span>→</span></a>
-      <p class="lbl live"><i></i><span><b class="painted">—</b> names painted</span></p>
-    </div>
-  </div>
-  <div class="frame">
-    <video id="teaser" src="teaser-1x1.mp4" poster="teaser-poster.png" autoplay muted loop playsinline preload="metadata" aria-label="THE WALL ARCADE teaser"></video>
-    <button class="sound" id="sound" type="button" aria-pressed="false">SOUND OFF</button>
+<!-- 2. the free plays (GET MY FREE PLAYS: hub/people-gate.ts) -->
+<section class="free" id="welcome">
+  <div class="wrap">
+    <div class="what"><p class="lbl">Free plays</p><p><b>People of the wall:</b> 3 every Friday, in the wallet that holds your name. <b>New wallet:</b> 5, once.</p></div>
+    <button class="btn" id="welcomeClaim" type="button">GET MY FREE PLAYS</button>
+    <p class="said" id="welcomeSaid" aria-live="polite"></p>
   </div>
 </section>
 
-<!-- 3. the games -->
+<!-- 3. every game with its pot of the week, the biggest first; the game of the week is above -->
 <section class="games" id="games">
   <div class="wrap">
-    <div class="sec-h"><h2 class="anton">The games</h2></div>
-    <div class="row" id="gameRow"><!--GAMES:START--><!--GAMES:END--></div>
-    <p class="holders">People of the wall: 3 free plays land in your wallet every Friday. Sign in with the wallet that holds your name.</p>
-    <div class="welcome" id="welcome"><p><b>New here?</b> 5 free plays, once, for a new wallet.</p><button class="btn" id="welcomeClaim" type="button">GET 5 FREE PLAYS</button><p class="said" id="welcomeSaid" aria-live="polite"></p></div>
+    <div class="sec-h"><h2 class="anton">All games</h2><p class="lbl"><span id="weekNo">Week 1</span> · the pots close in <span id="countdown">—</span></p></div>
+    <p class="intro">Every game has its own pot. Each play adds 0.00005 ETH to it, and the best score of the week takes it, every Friday at 11pm Lisbon.</p>
+    <ol class="list" id="gameList"><!--GAMES:START--><!--GAMES:END--></ol>
+    <p class="more"><a href="./earnings.html">See who earns what this week →</a></p>
   </div>
 </section>
 
-<!-- 4. this week's jackpot -->
-<section class="jackpot" id="jackpot">
-  <div class="wrap grid">
-    <div>
-      <p class="lbl" id="weekNo">Week 1</p>
-      <h2 class="anton">This week's<br>jackpot</h2>
-      <p class="amount prizes" id="prizes" aria-live="polite">—</p>
-      <p class="rule">Every play adds 0.00005 ETH. Every Friday at 23:00 Lisbon the week closes: half to the best score on each game, 40% to the artists, 10% to the wall.</p>
-      <p class="rule"><a href="./earnings.html">See who earns what this week →</a></p>
-      <div class="count"><p class="lbl">The week closes · Friday 23:00 Lisbon</p><p class="t" id="countdown">—</p></div>
-    </div>
-    <div class="boards" id="boards"><!--BOARDS:START--><!--BOARDS:END--></div>
-  </div>
-</section>
-
-<!-- 5. create your own game (the nav's Artists), on the live wall; getting on the wall is the small link under it -->
+<!-- 4. the artists' call (the nav's Artists), on the live wall; getting on the wall is the small link under it -->
 <section class="wall" id="artists">
   <div class="wrap two">
     <div class="frame">
@@ -303,16 +275,16 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
       <img class="dragon" src="dragon.png" alt="">
     </div>
     <div class="text">
-      <h2 class="anton">Create your own game</h2>
-      <p><b class="painted">—</b> names painted by hand in Lisbon. Turn them into a game.</p>
-      <p>Copy one file, paste it into your AI, publish on SuperRare Studio. 40% of every play is yours.</p>
+      <h2 class="anton">Your game could be next week's</h2>
+      <p>One file, your AI, one evening. 40% of every play is yours, and the game of the week gets 0.1 ETH of prizes.</p>
+      <p><b class="painted">—</b> names painted by hand in Lisbon. Turn them into a game, publish it on SuperRare Studio.</p>
       <a class="btn" href="./builders.html">CREATE MY OWN GAME <span>→</span></a>
       <p class="own">Own a name: your ticket to NFC Summit 2027, and 3 free plays every week. <a href="https://onthewall.nfcsummit.com" target="_blank" rel="noopener">Get on the wall →</a> The wall closes Friday Oct 30.</p>
     </div>
   </div>
 </section>
 
-<!-- 6. people of the wall: the counter (every character of the event · those on the wall), ADD YOURSELF for a holder signed in with Connect (hub/people-gate.ts asks
+<!-- 5. people of the wall: the counter (every character of the event · those on the wall), ADD YOURSELF for a holder signed in with Connect (hub/people-gate.ts asks
      the card service for a freshly signed capture link at the click; no link is ever in this page) or the SIGN IN line, the sprites of the wall, the Sprite Party scene -->
 <section class="people" id="people">
   <div class="wrap two">
@@ -345,10 +317,10 @@ dialog::backdrop{background:rgba(20,22,31,.6)}
 
 <script>
 /* games:start  THE GAMES, from the card service's games.json (cards/src/games.ts, the one list of the arcade's games): the
-   live ones in their order, then YOUR GAME HERE; NEW on the live game published last; each game's 10 s clip when the hub
-   has one for its slug (CLIPS, from hub/clips/ at build: made by hand), else the clip of its free practice made on the
-   Mac and kept by the card service (clip: npm run clip -- <slug>), else its capture. scripts/build-hub.ts evaluates this block to
-   draw the same HTML into the page at build time; the page redraws only if the live list differs. */
+   live ones, a line each in ALL GAMES with its pot of the week (the card service's /finale.json), the biggest first; NEW on
+   the live game published last. Each game's picture: the hub's own clip and screenshot for its slug (CLIPS, from hub/clips/ at
+   build: made by hand), else the clip of its free practice kept by the card service (npm run clip -- <slug>), else its capture.
+   scripts/build-hub.ts evaluates this block to draw the list into the page at build time, in the hub's order. */
 var CARDS_SITE = 'https://wall-arcade-cards.netlify.app';
 function gEsc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 function liveGames(games) {
@@ -356,25 +328,32 @@ function liveGames(games) {
     return g && g.status === 'live' && /^https:\/\/[a-z0-9]+\.srstudio\.dev$/.test(g.origin) && /^[0-9a-f-]{36}$/.test(g.appId) && /^[a-z0-9-]+$/.test(g.slug);
   }).sort(function (a, b) { return a.order - b.order; });
 }
-function gameCards(games, clips) {
-  var live = liveGames(games), pad = function (n) { return '#' + String(n).padStart(2, '0'); };
+/** a game's moving picture (`still`: its poster alone, for the list) */
+function gameMedia(g, clips, cls, still) {
+  var title = gEsc(String(g.title).toUpperCase()), clip = null, poster = null;
+  if (clips.indexOf(g.slug) >= 0) { clip = 'clips/' + g.slug + '.mp4'; poster = 'shots/' + g.slug + '.jpg'; }
+  else if (g.clip && /^\/games\/[a-z0-9-]{1,64}\.mp4$/.test(g.clip)) { clip = CARDS_SITE + g.clip; poster = CARDS_SITE + g.clip.replace(/\.mp4$/, '.jpg'); }
+  else if (g.shot && /^\/games\/[0-9a-f-]{36}\.png$/.test(g.shot)) poster = CARDS_SITE + g.shot;
+  if (clip && !still) return '<video class="' + cls + '" src="' + clip + '" poster="' + poster + '" autoplay muted loop playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-label="' + title + ', in play"></video>';
+  if (poster) return '<img class="' + cls + '" src="' + poster + '" alt="' + title + ', in play" loading="lazy">';
+  return '<div class="' + cls + '" role="img" aria-label="' + title + '"></div>';
+}
+function scoreText(n) { return Number(n).toLocaleString('en-US'); }
+/** ALL GAMES: `pots` from /finale.json (null: not read yet, the hub's order), `skip` the game of the week's slug */
+function gameList(games, clips, pots, skip) {
+  var live = liveGames(games), by = {};
+  (Array.isArray(pots) ? pots : []).forEach(function (p, i) { if (p && typeof p.slug === 'string') by[p.slug] = { p: p, i: i }; });
   var dated = live.filter(function (g) { return g.publishedAt; }).sort(function (a, b) { return Date.parse(b.publishedAt) - Date.parse(a.publishedAt); });
   var fresh = dated.length ? dated[0].appId : null;
-  return live.map(function (g, i) {
-    var title = gEsc(String(g.title).toUpperCase()), media;
-    if (clips.indexOf(g.slug) >= 0) media = '<video class="shot" src="clips/' + g.slug + '.mp4" poster="shots/' + g.slug + '.jpg" autoplay muted loop playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-label="' + title + ', in play"></video>';
-    else if (g.clip && /^\/games\/[a-z0-9-]{1,64}\.mp4$/.test(g.clip)) media = '<video class="shot" src="' + CARDS_SITE + g.clip + '" poster="' + CARDS_SITE + g.clip.replace(/\.mp4$/, '.jpg') + '" autoplay muted loop playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-label="' + title + ', in play"></video>';
-    else if (g.shot && /^\/games\/[0-9a-f-]{36}\.png$/.test(g.shot)) media = '<img class="shot" src="' + CARDS_SITE + g.shot + '" alt="' + title + ', in play" loading="lazy">';
-    else media = '<div class="shot" role="img" aria-label="' + title + '"></div>';
-    return '<article class="game"><div class="head"><h3>' + title + '</h3><span class="n">' + pad(i + 1) + '</span>' + (g.appId === fresh ? '<span class="new">NEW</span>' : '') + '</div>' +
-      media + '<p class="line">' + gEsc(g.line) + '</p><p class="by lbl">By ' + gEsc(g.artist && g.artist.name) + '</p>' +
-      '<div class="foot"><a class="btn" href="' + g.origin + '/" data-app="' + g.appId + '" target="_blank" rel="noopener">PLAY <span>→</span></a></div></article>';
-  }).join('') + '<article class="game yours"><div class="head"><h3>YOUR GAME HERE</h3><span class="n">' + pad(live.length + 1) + '</span></div>' +
-    '<div class="here">YOUR GAME HERE</div><div class="foot"><a class="btn dashed" href="./builders.html">CREATE MY OWN GAME <span>→</span></a></div></article>';
-}
-function gameBoards(games) {
-  return liveGames(games).map(function (g) {
-    return '<div class="board" data-game="' + g.slug + '"><div class="bh"><span>' + gEsc(String(g.title).toUpperCase()) + '</span><span>Top 3</span></div><p class="empty">Loading…</p></div>';
+  return live.filter(function (g) { return g.slug !== skip; }).sort(function (a, b) {
+    var x = by[a.slug] ? by[a.slug].i : 1e6, y = by[b.slug] ? by[b.slug].i : 1e6;
+    return x - y || a.order - b.order;
+  }).map(function (g) {
+    var title = gEsc(String(g.title).toUpperCase()), p = by[g.slug] && by[g.slug].p;
+    var pot = 'Pot <b>' + (p ? gEsc(p.potEth) : '—') + ' ETH</b>', lead = p ? (p.leader ? 'Leader ' + gEsc(p.leader.name) + ' · <b>' + gEsc(scoreText(p.leader.score)) + '</b>' : 'No score yet. Be the first.') : '';
+    return '<li class="g" data-game="' + g.slug + '">' + gameMedia(g, clips, 'th', true) + (g.appId === fresh ? '<span class="new">NEW</span>' : '') +
+      '<div><h3>' + title + '</h3><p class="lbl by">By ' + gEsc(g.artist && g.artist.name) + '</p><p class="pot">' + pot + '</p>' + (lead ? '<p class="lead">' + lead + '</p>' : '') + '</div>' +
+      '<a class="btn" href="' + g.origin + '/" data-app="' + g.appId + '" target="_blank" rel="noopener">PLAY</a></li>';
   }).join('');
 }
 /* games:end */
@@ -399,15 +378,6 @@ try {
     paintWall();
   }).catch(function () {});
 } catch (e) {}
-
-/* ---- the teaser: autoplay, muted, looping; one button for the sound ---- */
-var teaser = document.getElementById('teaser'), sound = document.getElementById('sound');
-sound.onclick = function () {
-  teaser.muted = !teaser.muted;
-  if (!teaser.muted) { var p = teaser.play(); if (p && p.catch) p.catch(function () {}); }
-  sound.textContent = teaser.muted ? 'SOUND OFF' : 'SOUND ON';
-  sound.setAttribute('aria-pressed', String(!teaser.muted));
-};
 
 /* week:start  THIS WEEK = Friday 23:00 Lisbon -> next Friday 23:00 Lisbon, one closing for every game; week 1 ran from
    Thursday 22 October 2026 00:00 to Friday 30 October 15:00 Lisbon, week 2 from there to Friday 6 November 23:00 (same as
@@ -434,102 +404,106 @@ function lisbonWeek(now) {
 }
 /* week:end */
 
-/* ---- the week's number, the countdown to its end, and the card service's /finale.json every 20 seconds: the prizes
-   ("PRIZES THIS WEEK: 0.1000 + X ETH · N plays this week", X = N × 0.00005) and the FINALE block ---- */
+/* ---- the week's number, the countdowns, and the card service's /finale.json every 20 seconds: the game of the week (its
+   Final before, during and after; with none this week, the biggest pot) and every game's pot ---- */
 var week = lisbonWeek(Date.now());
 var FIRST_FROM = '2026-10-21T23:00:00.000Z', SECOND_FROM = '2026-10-30T15:00:00.000Z', SECOND_TO = Date.parse('2026-11-06T23:00:00.000Z');
 /* weeks 1 and 2 are odd lengths; from week 3, Friday to Friday (a DST change moves an end by an hour, hence the rounding) */
-document.getElementById('weekNo').textContent = 'Week ' + (week.from === FIRST_FROM ? 1 : week.from === SECOND_FROM ? 2 : 3 + Math.round((Date.parse(week.from) - SECOND_TO) / 6048e5));
-var live = null, shownPlays = null;
+var weekN = week.from === FIRST_FROM ? 1 : week.from === SECOND_FROM ? 2 : 3 + Math.round((Date.parse(week.from) - SECOND_TO) / 6048e5);
+document.getElementById('weekNo').textContent = 'Week ' + weekN;
+var live = null, shownClip = null;
 function clock(left) {
   var z = function (v) { return String(v).padStart(2, '0'); };
   return Math.floor(left / 864e5) + 'D ' + z(Math.floor(left % 864e5 / 36e5)) + ':' + z(Math.floor(left % 36e5 / 6e4)) + ':' + z(Math.floor(left % 6e4 / 1e3));
 }
-/* "FRI NOV 6 · 4PM LISBON · 8AM SF · 11AM NY": a finale's start in the three cities */
-function cities(t) {
-  var d = new Date(t), at = function (zone) { return d.toLocaleString('en-US', { timeZone: zone, hour: 'numeric', minute: '2-digit', hour12: true }).replace(':00', '').replace(/\s/g, '').toUpperCase(); };
-  return d.toLocaleString('en-US', { timeZone: 'Europe/Lisbon', weekday: 'short', month: 'short', day: 'numeric' }).replace(',', '').toUpperCase() +
-    ' · ' + at('Europe/Lisbon') + ' LISBON · ' + at('America/Los_Angeles') + ' SF · ' + at('America/New_York') + ' NY';
+/* "FRI NOV 6 · 4PM → 11PM LISBON · 8AM SF · 11AM NY": a finale's hours in the three cities */
+function cities(from, to) {
+  var at = function (t, zone) { return new Date(t).toLocaleString('en-US', { timeZone: zone, hour: 'numeric', minute: '2-digit', hour12: true }).replace(':00', '').replace(/\s/g, '').toUpperCase(); };
+  return new Date(from).toLocaleString('en-US', { timeZone: 'Europe/Lisbon', weekday: 'short', month: 'short', day: 'numeric' }).replace(',', '').toUpperCase() +
+    ' · ' + at(from, 'Europe/Lisbon') + ' → ' + at(to, 'Europe/Lisbon') + ' LISBON · ' + at(from, 'America/Los_Angeles') + ' SF · ' + at(from, 'America/New_York') + ' NY';
 }
 function plainText(id, text) { document.getElementById(id).textContent = text; }
-function drawPrizes(d) {
-  var more = shownPlays !== null && d.plays > shownPlays ? d.plays - shownPlays : 0;
-  shownPlays = d.plays;
-  Array.prototype.forEach.call(document.querySelectorAll('.prizes'), function (p) {
-    p.innerHTML = 'PRIZES THIS WEEK: <b>' + (d.finale ? esc(d.finaleEth) + ' + ' : '') + esc(d.addEth) + ' ETH</b> · ' + esc(d.plays) + (d.plays === 1 ? ' play' : ' plays') + ' this week' + (more ? '<span class="plus up">+' + (more * 5 / 1e5).toFixed(5) + '</span>' : '');
-    if (more) setTimeout(function () { var u = p.querySelector('.plus'); if (u) u.className = 'plus'; }, 1200);
-  });
+function show(id, on) { document.getElementById(id).hidden = !on; }
+/** the game of the week: the Final's (before, live, after), else the biggest pot of the week ("hot") */
+function weekGame(d) {
+  var f = d.finale, list = liveGames(GAMES), find = function (slug) { return list.filter(function (g) { return g.slug === slug; })[0] || null; };
+  if (f && f.game) return { mode: f.state, game: find(f.game.slug) || { slug: f.game.slug, title: f.game.title, origin: f.game.origin, artist: { name: f.game.artist, panel: null }, line: '' } };
+  var top = (d.games || []).filter(function (p) { return find(p.slug); })[0];
+  return { mode: 'hot', game: top ? find(top.slug) : list[0] || null };
 }
-function drawFinale(f) {
-  var box = document.getElementById('finale'), top = document.getElementById('fTop'), play = document.getElementById('fPlay'), name = f.game ? f.game.title : 'To be announced';
-  box.hidden = false; box.className = 'finale' + (f.state === 'live' ? ' on' : '');
-  plainText('fLabel', f.state === 'live' ? 'The Finale · live · until 23:00 Lisbon' : f.state === 'after' ? 'The Finale of week ' + f.n + ' · the winners' : 'The Finale · ' + cities(f.from));
-  plainText('fGame', name);
-  plainText('fBy', f.game ? 'by ' + f.game.artist : 'One artist\'s game, every Friday');
-  plainText('fWhat', f.state === 'after' ? '0.1 ETH from NFC to the top 5 of the seven hours.' + (f.next ? ' Next Finale: ' + (f.next.game ? f.next.game.title + ', ' : '') + cities(f.next.from) + '.' : '')
-    : '0.1 ETH from NFC to the top ' + f.places + ' scores made in those seven hours: ' + (f.prizesEth || []).join(' · ') + ' ETH. 1 credit a play. Practice is free. The artist can\'t win on their own game.');
-  var bonus = document.getElementById('fBonus');
-  bonus.hidden = !f.bonus; bonus.textContent = f.bonus || '';
-  var game = f.state === 'after' ? (f.next && f.next.game) : f.game;
-  play.hidden = !game;
-  if (game) { play.href = game.origin + '/'; play.textContent = f.state === 'live' ? 'PLAY THE FINALE →' : 'PRACTICE NOW →'; }
-  top.hidden = f.state === 'before';
-  if (f.state !== 'before') top.innerHTML = '<div class="fh"><span>' + (f.state === 'live' ? 'Top ' + f.places + ' now' : 'Top ' + f.places) + '</span><span>' + (f.state === 'live' ? 'If it ended now' : 'Paid with the week') + '</span></div>' +
-    (f.top.length ? f.top.map(function (r) { return '<div class="r"><span class="k">' + esc(r.rank) + '</span><span class="p">' + esc(r.name) + '</span><span class="s">' + esc(r.score) + '</span><span class="e">' + esc(r.eth) + ' ETH</span></div>'; }).join('')
-      : '<p class="empty">' + (f.state === 'live' ? 'No score yet. Be the first.' : 'No score in the seven hours.') + '</p>');
+function potOf(d, slug) { return (d.games || []).filter(function (p) { return p.slug === slug; })[0] || null; }
+function rows(top) {
+  return top.map(function (r) { return '<div class="r"><span class="k">' + esc(r.rank) + '</span><span class="p">' + esc(r.name) + '</span><span class="s">' + esc(scoreText(r.score)) + '</span>' + (r.eth ? '<span class="e">' + esc(r.eth) + ' ETH</span>' : '<span></span>') + '</div>'; }).join('');
 }
-/* no finale in the document: not public yet (FINALE_PUBLIC, cards/src/finale.ts), the block and its line in How it works stay hidden */
+function drawWeek(d) {
+  var w = weekGame(d), f = d.finale, g = w.game, box = document.getElementById('top');
+  if (!g) return;
+  var title = String(g.title).toUpperCase(), artist = g.artist && g.artist.name, panel = g.artist && g.artist.panel;
+  box.className = 'week' + (w.mode === 'hot' ? ' hot' : '');
+  plainText('wLabel', w.mode === 'hot' ? 'Hottest game this week' : w.mode === 'after' ? 'Game of week ' + f.n : 'Game of the week');
+  plainText('wGame', title);
+  plainText('wBy', (artist ? 'by ' + artist : '') + (panel ? ' · panel ' + panel : ''));
+  plainText('wLine', g.line || '');
+  if (shownClip !== g.slug) { shownClip = g.slug; document.getElementById('wClip').innerHTML = gameMedia(g, CLIPS, 'v', false); }
+  // THIS GAME'S PRIZE: the Final's, never on the hottest game
+  show('wPrize', w.mode !== 'hot');
+  if (w.mode !== 'hot') {
+    plainText('pBig', '0.1 ETH' + (f.extra ? ' + ' + f.extra : ''));
+    plainText('pSplit', (f.prizesEth || []).join(' / ') + ' ETH');
+    show('pBonus', Boolean(f.bonus)); plainText('pBonus', f.bonus || '');
+  }
+  // the block under it
+  var fin = document.getElementById('final'), play = document.getElementById('fPlay'), practice = document.getElementById('fPractice'), space = document.getElementById('fSpace'), top = document.getElementById('fTop');
+  fin.hidden = false; fin.className = 'final' + (w.mode === 'live' ? ' on' : '');
+  play.href = practice.href = g.origin + '/'; play.textContent = 'PLAY ' + title + ' →';
+  var pot = potOf(d, g.slug), leader = pot && pot.leader;
+  plainText('fLabel', w.mode === 'hot' ? 'This week\'s pot · ' + (pot ? pot.potEth : '—') + ' ETH' : w.mode === 'live' ? 'Live now · the Final, live on X' : w.mode === 'after' ? 'The Final of week ' + f.n + ' · the winners' : 'The Final · live on X');
+  plainText('fWhen', w.mode === 'hot' ? 'The best score of the week takes it · Friday 11PM Lisbon' : cities(f.from, f.to));
+  var beat = document.getElementById('fBeat'), best = w.mode === 'live' ? f.top[0] : w.mode === 'after' ? null : leader;
+  beat.hidden = w.mode === 'after';
+  beat.innerHTML = best ? 'Score to beat <b>' + esc(scoreText(best.score)) + '</b> · ' + esc(best.name) : w.mode === 'live' ? 'No score yet. Be the first.' : 'No score this week yet.';
+  top.hidden = w.mode !== 'live' && w.mode !== 'after';
+  if (!top.hidden) top.innerHTML = '<div class="fh"><span>Top ' + f.places + (w.mode === 'live' ? ' now' : '') + '</span><span>' + (w.mode === 'live' ? 'If it ended now' : 'Paid Saturday') + '</span></div>' +
+    (f.top.length ? rows(f.top) : '<p class="empty">' + (w.mode === 'live' ? 'No score yet. Be the first.' : 'No score in the seven hours.') + '</p>');
+  space.hidden = !(w.mode === 'live' && f.space && /^https:\/\/x\.com\/i\/spaces\/[A-Za-z0-9]+\/?$/.test(f.space));
+  if (!space.hidden) space.href = f.space;
+  var next = document.getElementById('fNext');
+  next.hidden = !(w.mode === 'after' && f.next);
+  if (!next.hidden) next.textContent = 'Next Final: ' + (f.next.game ? f.next.game.title + ', ' : '') + cities(f.next.from, f.next.to) + '.';
+  return g.slug;
+}
 function drawLive(d) {
-  live = d; drawPrizes(d);
-  if (d.finale) drawFinale(d.finale); else document.getElementById('finale').hidden = true;
-  document.getElementById('howFinale').hidden = !d.finale;
+  live = d;
+  var skip = drawWeek(d);
+  document.getElementById('gameList').innerHTML = gameList(GAMES, CLIPS, d.games, skip);
+  show('howFinale', Boolean(d.finale));
   tick();
 }
 function loadLive() {
   try {
     fetch(CARDS_SITE + '/finale.json').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(function (d) {
       if (d && typeof d.plays === 'number') drawLive(d);
-    }).catch(function () {});
+    }).catch(function () { if (!live) drawLive({ plays: 0, games: [], finale: null }); });
   } catch (e) {}
 }
 function tick() {
-  document.getElementById('countdown').textContent = clock(Math.max(0, Date.parse(week.to) - Date.now()));
-  if (!live || !live.finale) return;
-  var f = live.finale, now = Date.now();
-  plainText('fCount', f.state === 'live' ? clock(Math.max(0, Date.parse(f.to) - now)) + ' LEFT' : f.state === 'before' ? 'OPENS IN ' + clock(Math.max(0, Date.parse(f.from) - now)) : 'CLOSED');
+  var now = Date.now(), weekLeft = clock(Math.max(0, Date.parse(week.to) - now));
+  plainText('countdown', weekLeft);
+  if (!live) return;
+  var w = weekGame(live), f = live.finale;
+  plainText('fCount', w.mode === 'hot' ? 'CLOSES IN ' + weekLeft : w.mode === 'live' ? 'ENDS IN ' + clock(Math.max(0, Date.parse(f.to) - now)) : w.mode === 'before' ? 'STARTS IN ' + clock(Math.max(0, Date.parse(f.from) - now)) : 'CLOSED');
   // a stage's end: the next reading says what comes next
-  if ((f.state === 'live' && now >= Date.parse(f.to)) || (f.state === 'before' && now >= Date.parse(f.from))) { live = null; loadLive(); }
+  if (f && ((f.state === 'live' && now >= Date.parse(f.to)) || (f.state === 'before' && now >= Date.parse(f.from)))) { live = null; loadLive(); }
 }
 tick(); setInterval(tick, 1000);
 loadLive(); setInterval(loadLive, 20000);
-
-/* ---- the week's top 3 of each game, read-only and public from each game's own origin (the same data as the games) ---- */
-function shortPlayer(p) { if (p && p.ensName) return String(p.ensName).slice(0, 28); var n = (p && p.displayName) || ''; return /^0x[0-9a-f]{40}$/i.test(n) ? n.slice(0, 6) + '…' + n.slice(-4) : n.slice(0, 18); }
-function loadBoards(games) {
-  liveGames(games).forEach(function (g) {
-    var box = document.querySelector('.board[data-game="' + g.slug + '"]');
-    if (!box) return;
-    var empty = function () { var e = box.querySelector('.empty'); if (e) e.textContent = 'No scores yet. Be the first.'; };
-    fetch(g.origin + '/api/v1/games/' + g.appId + '/scoring/leaderboard?from=' + encodeURIComponent(week.from) + '&to=' + encodeURIComponent(week.to))
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(function (d) {
-        var entries = (d && d.entries) || [], e = box.querySelector('.empty');
-        if (!entries.length) { empty(); return; }
-        if (e) e.outerHTML = entries.slice(0, 3).map(function (x) {
-          return '<div class="r"><span class="k">' + esc(String(x.rank).padStart(2, '0')) + '</span><span class="p">' + esc(shortPlayer(x.player)) + '</span><span class="s">' + esc(x.score) + '</span></div>';
-        }).join('');
-      }).catch(empty);
-  });
-}
-loadBoards(GAMES);
 /* the live list: the page was drawn from the list as it was at build; a game put on the hub since (or hidden, or moved)
    is drawn now, with no new build of the hub */
 try {
   fetch(CARDS_SITE + '/games.json').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(function (games) {
-    if (!liveGames(games).length || gameCards(games, CLIPS) + gameBoards(games) === gameCards(GAMES, CLIPS) + gameBoards(GAMES)) return;
+    if (!liveGames(games).length || JSON.stringify(liveGames(games)) === JSON.stringify(liveGames(GAMES))) return;
     GAMES = games;
-    document.getElementById('gameRow').innerHTML = gameCards(games, CLIPS);
-    document.getElementById('boards').innerHTML = gameBoards(games);
-    loadBoards(games);
+    if (live) drawLive(live); else document.getElementById('gameList').innerHTML = gameList(GAMES, CLIPS, null, null);
   }).catch(function () {});
 } catch (e) {}
 
@@ -550,14 +524,22 @@ try {
   }).catch(function () {});
 } catch (e) {}
 
-/* ---- the (i) ---- */
-var how = document.getElementById('how');
-document.getElementById('infoBtn').onclick = function () { if (how.showModal) how.showModal(); else how.setAttribute('open', ''); };
+/* ---- the (i): THE WALL ARCADE and its teaser (loaded at the first opening, muted, looping; one button for the sound) ---- */
+var how = document.getElementById('how'), teaser = document.getElementById('teaser'), sound = document.getElementById('sound');
+function playTeaser() { var p = teaser.play(); if (p && p.catch) p.catch(function () {}); }
+sound.onclick = function () {
+  teaser.muted = !teaser.muted;
+  if (!teaser.muted) playTeaser();
+  sound.textContent = teaser.muted ? 'SOUND OFF' : 'SOUND ON';
+  sound.setAttribute('aria-pressed', String(!teaser.muted));
+};
+document.getElementById('infoBtn').onclick = function () { if (how.showModal) how.showModal(); else how.setAttribute('open', ''); playTeaser(); };
 document.getElementById('howClose').onclick = function () { if (how.close) how.close(); else how.removeAttribute('open'); };
 how.addEventListener('click', function (e) { if (e.target === how && how.close) how.close(); });   // a tap on the backdrop
+how.addEventListener('close', function () { teaser.pause(); });
 </script>
 <script>
-/* the PEOPLE gate and GET 5 FREE PLAYS (people-gate.js, with the Connect SDK, ~500 KB) load only when one of them comes near */
+/* the PEOPLE gate and GET MY FREE PLAYS (people-gate.js, with the Connect SDK, ~500 KB) load only when one of them comes near */
 (function () {
   var people = document.getElementById('people'), load = function () { var s = document.createElement('script'); s.type = 'module'; s.src = 'people-gate.js'; document.body.appendChild(s); };
   if (!('IntersectionObserver' in window)) { load(); return; }

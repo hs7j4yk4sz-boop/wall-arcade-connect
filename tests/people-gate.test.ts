@@ -29,7 +29,7 @@ before(async () => {
   if (!CHROME) return;
   browser = await chromium.launch({ executablePath: CHROME, headless: true });
   const html = await readFile(new URL('../hub/src.html', import.meta.url), 'utf8');
-  page$ = `<!doctype html><title>x</title>${/<div class="welcome"[\s\S]*?<\/div>/.exec(html)![0]}${/<section class="people"[\s\S]*?<\/section>/.exec(html)![0]}<script src="/people-gate.js"></script>`;
+  page$ = `<!doctype html><title>x</title>${/<section class="free"[\s\S]*?<\/section>/.exec(html)![0]}${/<section class="people"[\s\S]*?<\/section>/.exec(html)![0]}<script src="/people-gate.js"></script>`;
   const out = await build({ entryPoints: [new URL('../hub/people-gate.ts', import.meta.url).pathname], bundle: true, format: 'iife', platform: 'browser', write: false });
   gate = out.outputFiles[0]!.text;
 });
@@ -82,7 +82,7 @@ const away = (page: Page, hidden: boolean) => page.evaluate((h) => {
 }, hidden);
 
 for (const [name, device] of Object.entries(DEVICES)) {
-  test(`${name}: GET 5 FREE PLAYS: the popup, the session, one ask with its token, the answer; a slow profile does not hold it`, { skip: !CHROME || Boolean(process.env.GATE_LIVE) }, async () => {
+  test(`${name}: GET MY FREE PLAYS: the popup, the session, one ask with its token, the answer; a slow profile does not hold it`, { skip: !CHROME || Boolean(process.env.GATE_LIVE) }, async () => {
     const s = await stage(device);
     const [popup] = await Promise.all([s.context.waitForEvent('page'), s.page.click('#welcomeClaim')]);
     s.claimable = true;

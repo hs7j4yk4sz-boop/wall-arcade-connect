@@ -63,9 +63,9 @@ if (values.offline) {
 }
 const marker = /\/\*SNAPSHOT:START\*\/.*?\/\*SNAPSHOT:END\*\//s;
 if (!marker.test(html)) throw new Error('Snapshot markers missing in hub/src.html');
-// THE GAMES: games.json as the card service serves it now (cards/src/games.ts; its seed offline), drawn into the page by
-// the page's own functions (the games:start block), so the page shows its games before any request; it redraws only if
-// the live list has changed since
+// THE GAMES: games.json as the card service serves it now (cards/src/games.ts; its seed offline), drawn into ALL GAMES by
+// the page's own functions (the games:start block), so the page shows its games before any request; the pots of the week
+// and the game of the week come with /finale.json
 type GameRow = { status: string; title: string; slug: string };
 let games: GameRow[];
 if (values.offline) games = JSON.parse(await readFile(new URL('../cards/games/seed.json', import.meta.url), 'utf8')) as GameRow[];
@@ -76,13 +76,12 @@ else {
 }
 const block = /\/\* games:start[\s\S]*?\/\* games:end \*\//.exec(html);
 if (!block) throw new Error('hub/src.html must hold the games:start … games:end block');
-const draw = new Function(`${block[0]}\nreturn { gameCards, gameBoards, liveGames };`)() as { gameCards(g: unknown, c: string[]): string; gameBoards(g: unknown): string; liveGames(g: unknown): GameRow[] };
+const draw = new Function(`${block[0]}\nreturn { gameList, liveGames };`)() as { gameList(g: unknown, c: string[], pots: null, skip: null): string; liveGames(g: unknown): GameRow[] };
 const live = draw.liveGames(games);
 if (!live.length) throw new Error('games.json: no live game');
-for (const [name, re] of [['GAMES', /<!--GAMES:START-->[\s\S]*?<!--GAMES:END-->/], ['BOARDS', /<!--BOARDS:START-->[\s\S]*?<!--BOARDS:END-->/], ['games', /\/\*GAMES:START\*\/.*?\/\*GAMES:END\*\//s], ['clips', /\/\*CLIPS:START\*\/.*?\/\*CLIPS:END\*\//s]] as const) if (!re.test(html)) throw new Error(`hub/src.html: ${name} markers missing`);
+for (const [name, re] of [['GAMES', /<!--GAMES:START-->[\s\S]*?<!--GAMES:END-->/], ['games', /\/\*GAMES:START\*\/.*?\/\*GAMES:END\*\//s], ['clips', /\/\*CLIPS:START\*\/.*?\/\*CLIPS:END\*\//s]] as const) if (!re.test(html)) throw new Error(`hub/src.html: ${name} markers missing`);
 const page = html.replace(marker, () => `/*SNAPSHOT:START*/${JSON.stringify(rows)}/*SNAPSHOT:END*/`)
-  .replace(/<!--GAMES:START-->[\s\S]*?<!--GAMES:END-->/, () => `<!--GAMES:START-->${draw.gameCards(games, CLIPS)}<!--GAMES:END-->`)
-  .replace(/<!--BOARDS:START-->[\s\S]*?<!--BOARDS:END-->/, () => `<!--BOARDS:START-->${draw.gameBoards(games)}<!--BOARDS:END-->`)
+  .replace(/<!--GAMES:START-->[\s\S]*?<!--GAMES:END-->/, () => `<!--GAMES:START-->${draw.gameList(games, CLIPS, null, null)}<!--GAMES:END-->`)
   .replace(/\/\*GAMES:START\*\/.*?\/\*GAMES:END\*\//s, () => `/*GAMES:START*/${JSON.stringify(games).replace(/<\//g, '<\\/')}/*GAMES:END*/`)
   .replace(/\/\*CLIPS:START\*\/.*?\/\*CLIPS:END\*\//s, () => `/*CLIPS:START*/${JSON.stringify(CLIPS)}/*CLIPS:END*/`);
 if (!marker.test(buildersSource)) throw new Error('Snapshot markers missing in hub/builders.html');

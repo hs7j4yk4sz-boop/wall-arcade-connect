@@ -20,7 +20,7 @@ const PLAN = buildPlan(WEEK, { [uuid(1)]: 96, [uuid(2)]: 214, [uuid(3)]: 41 }, G
 let week: Record<string, unknown> = { plan: PLAN, status: 'due', computedAt: WEEK.to };
 const later = Date.UTC(2026, 10, 13, 16), finale = (n: number, i: number): { n: number; from: string; to: string; open: boolean; pick: { appId: string; title: string; artist: string } | null } => ({ n, from: new Date(later + i * 7 * 86_400_000).toISOString(), to: new Date(later + i * 7 * 86_400_000 + 7 * 3_600_000).toISOString(), open: true, pick: null });
 const BOARD = [entry(9, 'demo-artist.eth', 9800), ...[9120, 8760, 7340, 6010, 5525, 4410, 3980, 2215, 1870, 900].map((score, i) => entry(i + 1, i % 3 === 2 ? '' : `player-${i + 1}.eth`, score))];
-const finales: { n: number; from: string; to: string; open: boolean; closed?: boolean; pick: { appId: string; title: string; artist: string; bonus?: string } | null }[] = [{ n: 2, from: '2026-11-06T16:00:00.000Z', to: WEEK.to, open: false, closed: true, pick: { appId: uuid(2), title: 'GATE RUSH', artist: 'Demo Artist', bonus: '+ 10 coffees by Demo Artist for the top 10' } }, finale(3, 0), finale(4, 1), finale(5, 2)];
+const finales: { n: number; from: string; to: string; open: boolean; closed?: boolean; pick: { appId: string; title: string; artist: string; bonus?: string; extra?: string; space?: string } | null }[] = [{ n: 2, from: '2026-11-06T16:00:00.000Z', to: WEEK.to, open: false, closed: true, pick: { appId: uuid(2), title: 'GATE RUSH', artist: 'Demo Artist', extra: '10 coffees', bonus: 'Top 10: a Demo Artist coffee NFT' } }, finale(3, 0), finale(4, 1), finale(5, 2)];
 const offered = GAMES.filter((g) => g.payoutWallet).map((g) => ({ appId: g.appId, title: g.title, artist: g.artist.name }));
 const weeks = (): unknown => ({ ok: true, weeks: [week], treasury: TREASURY, disperse: DISPERSE });
 
@@ -40,10 +40,15 @@ export const demo = {
     if (body.action === 'whoami') return { code: 200, data: { wallet: `${TREASURY} (preview)`, games: GAMES } };
     if (body.action === 'finale') return { code: 200, data: { ok: true, finales, offered } };
     if (body.action === 'finale-top10') { const rows = topTen(BOARD, fake(9)); return { code: 200, data: { ok: true, n: 2, title: 'GATE RUSH', rows, csv: csvOf(rows) } }; }
+    if (body.action === 'finale-space') {
+      const row = finales.find((f) => f.n === body.week), space = typeof body.space === 'string' ? body.space.trim() : '';
+      if (row?.pick) { const { space: _old, ...rest } = row.pick; row.pick = { ...rest, ...(space ? { space } : {}) }; }
+      return { code: 200, data: { ok: true, finales, offered } };
+    }
     if (body.action === 'finale-pick') {
       const row = finales.find((f) => f.n === body.week), chosen = offered.find((g) => g.appId === body.appId) ?? null;
-      const bonus = typeof body.bonus === 'string' ? body.bonus.trim() : '';
-      if (row) row.pick = chosen && { appId: chosen.appId, title: chosen.title, artist: chosen.artist, ...(bonus ? { bonus } : {}) };
+      const word = (k: string): string => (typeof body[k] === 'string' ? (body[k] as string).trim() : '');
+      if (row) row.pick = chosen && { appId: chosen.appId, title: chosen.title, artist: chosen.artist, ...Object.fromEntries(['bonus', 'extra', 'space'].filter((k) => word(k)).map((k) => [k, word(k)])) };
       return { code: 200, data: { ok: true, finales, offered } };
     }
     if (body.action === 'jackpot-paid') week = { ...week, status: 'paid', hash: body.hash, wall: '0x00000000000000000000000000000000000a11ce', paidAt: new Date().toISOString() };

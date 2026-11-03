@@ -16,8 +16,10 @@ export const PLAY_PRIZE_WEI = CREDIT_WEI / 2n;                  // what a play a
 const HOURS_MS = 3_600_000;
 const AFTER_MS = 48 * HOURS_MS;                                 // the winners stay on the hub until Sunday 23:00
 
-/** `bonus`: one line of the admin's under the prizes, "+ 10 coffees by Bully Meow for the top 10". */
-export type FinalePick = { n: number; appId: string; slug: string; title: string; origin: string; artist: string; artistWallet: string; by: string; at: string; bonus?: string };
+/** The admin's words on the hub's prize: `extra` after the 0.1 ETH ("0.1 ETH + 10 coffees"), `bonus` one line under the split
+ *  ("Top 10: a Bully Meow coffee NFT"); `space` the X space of the finale, its link on the hub while it runs. */
+export type FinalePick = { n: number; appId: string; slug: string; title: string; origin: string; artist: string; artistWallet: string; by: string; at: string; bonus?: string; extra?: string; space?: string };
+export const SPACE = /^https:\/\/(?:x|twitter)\.com\/i\/spaces\/[A-Za-z0-9]{6,32}\/?$/;
 export type Winner = { rank: number; wallet: string; name: string; score: number; wei: string };
 export type Entry = { player?: { kind?: string; id?: string; ensName?: string | null }; score?: string };
 
@@ -56,6 +58,14 @@ export function playsEth(plays: number): string {
   const wei = BigInt(plays) * PLAY_PRIZE_WEI, units = wei / 10_000_000_000_000n;
   return `${units / 100_000n}.${String(units % 100_000n).padStart(5, '0')}`;
 }
+
+export type Leader = { name: string; score: number };
+export type Pot = { slug: string; plays: number; potEth: string; leader: Leader | null };
+/** Each live game's pot of the week, the biggest first (then the hub's order): its plays × 0.00005 ETH, the week's best score
+ *  taking it on Friday (cards/src/jackpot.ts). */
+export const potsOf = (games: Game[], plays: Record<string, number>, leaders: Record<string, Leader | null>): Pot[] => games.filter((g) => g.status === 'live')
+  .sort((a, b) => (plays[b.slug] ?? 0) - (plays[a.slug] ?? 0) || a.order - b.order)
+  .map((g) => ({ slug: g.slug, plays: plays[g.slug] ?? 0, potEth: playsEth(plays[g.slug] ?? 0), leader: leaders[g.slug] ?? null }));
 
 /** What the hub's FINALE block shows: `after` a finale until Sunday 23:00, then `before` the next one, `live` during it. */
 export function finaleStage(now: number, week: NumberedWeek, previous: NumberedWeek | null, previousPicked: boolean): 'before' | 'live' | 'after' {
